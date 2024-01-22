@@ -15,5 +15,6 @@ target_link_libraries(uwb-imu-fusion PUBLIC navx)
 target_include_directories(uwb-imu-fusion
     PRIVATE 
         ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/libs/navx/include
 )
 
