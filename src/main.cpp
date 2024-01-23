@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Program Executing\n";
     signal(SIGINT, handle_sig);
 
-    AHRS com = AHRS("/dev/ttyACM1");
+    AHRS com = AHRS("/dev/ttyACM0");
 
     printf("Initializing\n\n");
 

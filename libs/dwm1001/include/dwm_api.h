@@ -37,39 +37,39 @@
 #define RV_ERR_BUSY     (4)      /*  ret value ERROR: busy  */
 #define RV_ERR_PERMIT   (5)      /*  ret value ERROR: operation not permitted */
 
+
 #define DWM_API_USR_DATA_LEN_MAX 		34
 #define DWM_API_LABEL_LEN_MAX 			16
 #define DWM_API_UWB_SCAN_RESULT_CNT_MAX 16
 #define DWM_API_BH_ORIGIN_CNT_MAX 		9
-#define DWM_RANGING_ANCHOR_CNT_MAX	14
-#define DWM_API_USR_DATA_LEN_MAX	34
-
-#define DWM_LABEL_LEN_MAX	16
-
-/* BLE address length */
-#define DWM_BLE_ADDR_LEN 6
-
-/*
- * @brief bit definitions for TLV Type request: DWM1001_TLV_TYPE_CMD_INT_CFG
-**/
-/* Interrupts */
-#define DWM1001_INTR_NONE                    0
-#define DWM1001_INTR_LOC_READY				   (1 << 0)	/* location data ready */
-#define DWM1001_INTR_SPI_DATA_READY			   (1 << 1)	/* SPI data ready */
-#define DWM1001_INTR_UWBMAC_STATUS_CHANGED	(1 << 2)	/* UWBMAC status changed */
-#define DWM1001_INTR_UWBMAC_BH_DATA_READY	   (1 << 3)	/* UWBMAC backhaul data ready*/
-#define DWM1001_INTR_UWBMAC_BH_AVAILABLE		(1 << 4)	/* backhaul available */
-#define DWM1001_INTR_UWBMAC_SCAN_RESULT		(1 << 5)	/* UWBMAC scan result */
-#define DWM1001_INTR_UWBMAC_USR_DATA_READY	(1 << 6)	/* new user data ready*/
-#define DWM1001_INTR_UWBMAC_JOINED_CHANGED	(1 << 7)	/* UWBMAC joined */
-#define DWM1001_INTR_UWBMAC_USR_DATA_SENT		(1 << 8)	/* user data TX completed over UWBMAC */
-#define DWM_ENC_KEY_LEN 16
-
-#define DWM_UWB_SCAN_RESULT_CNT_MAX 16
-
 /********************************************************************************************************************/
 /*                                                     API LIST                                                     */
 /********************************************************************************************************************/
+
+typedef struct {
+	int fd;
+} dwm1001;
+
+/**
+ * @brief Initializes the required components for DWM1001 module, 
+ *       especially the Low-level Module Handshake (LMH) devides. 
+ *
+ * @param[in] none
+ *
+ * @return none
+ */
+dwm1001* dwm_init(char* serial_port);
+
+
+/**
+ * @brief De-initializes the required components for DWM1001 module
+ *
+ * @param[in] none
+ *
+ * @return none
+ */
+void dwm_deinit(dwm1001* dwm);
+
 /**
  * @brief Position coordinates in millimeters + quality factor
  */
@@ -79,14 +79,65 @@ typedef struct {
 	int32_t z;
 	uint8_t qf;
 } dwm_pos_t;
+/**
+ * @brief Sets position of anchor node
+ *
+ * @param[in] pos, pointer to position coordinates
+ *
+ * @return Error code
+ */
+int dwm_pos_set(dwm1001 * dwm, dwm_pos_t* pos);
 
 /**
- * @brief maximum and minimum update rate in multiple of 100 ms
+ * @brief Sets position of anchor node, can be used when one does not
+ * want to set all coordinates
+ *
+ * @param[in] p_x Pointer to x coordinate (millimeters), ignored if null
+ * @param[in] p_y Pointer to y coordinate (millimeters), ignored if null
+ * @param[in] p_z Pointer to z coordinate (millimeters), ignored if null
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ * @retval DWM_ERR_INTERNAL Position can't be read
  */
+int dwm_pos_set_xyz(dwm1001 * dwm, int32_t* p_x, int32_t* p_y, int32_t* p_z);//todo
+
+/**
+ * @brief Gets position of the node
+ *
+ * @param[out] pos, pointer to position
+ *
+ * @return Error code
+ */
+int dwm_pos_get(dwm1001 * dwm, dwm_pos_t* pos);
+
+/* maximum and minimum update rate in multiple of 100 ms */
 enum dwm_upd_rate{
 	DWM_UPD_RATE_MAX = 600,	/* 1 minute */
 	DWM_UPD_RATE_MIN = 1	/* 100 ms */
 };
+/**
+ * @brief Sets update rate
+ *
+ * @param[in] ur, Update rate in multiply of 100 ms, [min,max] = [DWM_UPD_RATE_MIN, DWM_UPD_RATE_MAX]
+ * @param[in] urs, Stationary update rate in multiply of 100 ms, [min,max] = [DWM_UPD_RATE_MIN, DWM_UPD_RATE_MAX]
+ *
+ * @return Error code
+ */
+int dwm_upd_rate_set(dwm1001 * dwm, uint16_t ur, uint16_t urs);
+
+/**
+ * @brief Gets update rate
+ *
+ * @param[out] ur, Pointer to update rate, update rate is multiply of 100 ms
+ * [min,max] = [DWM_UPD_RATE_MIN, DWM_UPD_RATE_MAX]
+ * @param[out] urs, Pointer to stationary update rate, update rate is multiply of 100 ms
+ * [min,max] = [DWM_UPD_RATE_MIN, DWM_UPD_RATE_MAX]
+ *
+ * @return Error code
+ */
+int dwm_upd_rate_get(dwm1001 * dwm, uint16_t *ur, uint16_t *urs);
+
 
 /**
  * @brief Position measurement modes
@@ -152,12 +203,38 @@ typedef struct dwm_cfg {
 } dwm_cfg_t;
 
 /**
- * @brief List of anchors
+ * @brief Configures node to tag mode with given options
+ *
+ * @param[in] cfg, Tag configuration options
+ *
+ * @return Error code
  */
-typedef struct {
-	uint8_t cnt;
-	dwm_anchor_list_elt_t v[DWM_RANGING_ANCHOR_CNT_MAX];
-} dwm_anchor_list_t;
+int dwm_cfg_tag_set(dwm1001 * dwm, dwm_cfg_tag_t* cfg);
+
+/**
+ * @brief Configures node to anchor mode with given options
+ *
+ * @param[in] cfg, Anchor configuration options
+ *
+ * @return Error code
+ */
+int dwm_cfg_anchor_set(dwm1001 * dwm, dwm_cfg_anchor_t* cfg);
+
+/**
+ * @brief Reads configuration of the node
+ *
+ * @param[out] cfg, Node configuration
+ *
+ * @return Error code
+ */
+int dwm_cfg_get(dwm1001 * dwm, dwm_cfg_t* cfg);
+
+/**
+ * @brief Puts device to sleep mode
+ *
+ * @return Error code
+ */
+int dwm_sleep(dwm1001 * dwm);
 
 /**
  * @brief Element of anchor list
@@ -170,6 +247,31 @@ typedef struct {
 	bool neighbor_network;
 } dwm_anchor_list_elt_t;
 
+
+/* Maximum number of neighbor anchors */
+#define DWM_RANGING_ANCHOR_CNT_MAX	14
+
+/**
+ * @brief List of anchors
+ */
+typedef struct {
+	uint8_t cnt;
+	dwm_anchor_list_elt_t v[DWM_RANGING_ANCHOR_CNT_MAX];
+} dwm_anchor_list_t;
+
+/**
+ * @brief Reads list of surrounding anchors. Works for anchors only.
+ * Anchors in the list can be from the same network or from
+ * the neighbor network as well.
+ *
+ * @param[out] p_list
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ * @retval DWM_ERR_INVAL_ADDR null pointer
+ * @retval DWM_ERR_INTERNAL internal error
+ */
+int dwm_anchor_list_get(dwm1001 * dwm, dwm_anchor_list_t* p_list);
 
 /**
  * @brief Distances of ranging anchors
@@ -205,19 +307,91 @@ typedef struct dwm_loc_data_t {
 	dwm_pos_t* p_pos;
 	dwm_ranging_anchors_t anchors;
 } dwm_loc_data_t;
+/**
+ * @brief Gets location data
+ *
+ * @param[out] loc Pointer to location data
+ *
+ * @return Error code
+ */
+int dwm_loc_get(dwm1001 * dwm, dwm_loc_data_t* loc);
 
+/* BLE address length */
+#define DWM_BLE_ADDR_LEN 6
 /**
  * @brief BLE address
  */
 typedef struct {
 	uint8_t byte[DWM_BLE_ADDR_LEN];
 }dwm_baddr_t;
+/**
+ * @brief Sets the public BLE address used by device. New address takes effect after reset. 
+ *    This call do a write to internal flash in case of new value being set, hence should 
+ *    not be used frequently and can take in worst case hundreds of milliseconds
+ *
+ * @param[in] baddr, ble address in little endian.
+ *
+ * @return Error code
+ */
+int dwm_baddr_set(dwm1001 * dwm, dwm_baddr_t* baddr);
+
+/**
+ * @brief Gets the current BLE address used by device.
+ *
+ * @param[out] baddr, ble address in little endian.
+ *
+ * @return Error code
+ */
+int dwm_baddr_get(dwm1001 * dwm, dwm_baddr_t* baddr);
 
 typedef enum {
 	DWM_STNRY_SENSITIVITY_LOW = 0,
 	DWM_STNRY_SENSITIVITY_NORMAL = 1,
 	DWM_STNRY_SENSITIVITY_HIGH = 2
 } dwm_stnry_sensitivity_t;
+
+/**
+ * @brief Writes configuration of the stationary mode which is used by tag node. The configuration
+ * can be written even if stationary detection is disabled (see dwm_cfg_tag_set). Writes internal non-volatile memory
+ * so should be used carefully. New sensitivity setting takes effect immediately if stationary mode is enabled. Default
+ * sensitivity is “HIGH”.
+ *
+ * @param[in] sensitivity Stationary sensitivity
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ * @retval DWM_ERR_INTERNAL failed to write configuration
+ * @retval DWM_ERR_INVAL_PARAM unknown sensitivity level
+ */
+int dwm_stnry_cfg_set(dwm1001 * dwm, dwm_stnry_sensitivity_t sensitivity);
+
+/**
+ * @brief Reads configuration of the stationary mode which is used by tag node. The
+ * configuration can be read even if stationary detection is disabled.
+ *
+ * @param[out] p_sensitivity Pointer to stationary sensitivity
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ * @retval DWM_ERR_INTERNAL failed to read configuration
+ * @retval DWM_ERR_INVAL_ADDR null pointer supplied
+ */
+int dwm_stnry_cfg_get(dwm1001 * dwm, dwm_stnry_sensitivity_t* p_sensitivity);
+
+/**
+ * @brief Resets DWM module
+ *
+ * @return Error code
+ */
+int dwm_reset(dwm1001 * dwm);
+
+/**
+ * @brief Puts node to factory settings. Environment is erased and set to
+ * default state. Resets the node. This call does a write to internal flash,
+ * hence should not be used frequently and can take in worst case
+ * hundreds of milliseconds!
+ */
+int dwm_factory_reset(dwm1001 * dwm);
 
 /**
  * @brief Firmware version data
@@ -240,6 +414,15 @@ typedef struct dwm_ver_t {
 } dwm_ver_t;
 
 /**
+ * @brief Gets versions
+ *
+ * @param[out] ver, pointer to version data
+ *
+ * @return Error code
+ */
+int dwm_ver_get(dwm1001 * dwm, dwm_ver_t* ver);
+
+/**
  * @brief UWB configuration parameters
  */
 typedef struct {
@@ -250,6 +433,99 @@ typedef struct {
 		uint32_t tx_power;
 	} compensated;
 } dwm_uwb_cfg_t;
+
+/**
+ * @brief Sets UWB configuration parameters
+ *
+ * @param[in] p_cfg Configuration parameters
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ * @retval DWM_ERR_INTERNAL
+ * @retval DWM_ERR_INVAL_ADDR null pointer supplied
+ */
+int dwm_uwb_cfg_set(dwm1001 * dwm, dwm_uwb_cfg_t *p_cfg);
+
+/**
+ * @brief Gets UWB configuration parameters
+ *
+ * @param[out] p_cfg Configuration parameters
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ * @retval DWM_ERR_INTERNAL Can't get configuration
+ * @retval DWM_ERR_INVAL_ADDR null pointer supplied
+ */
+int dwm_uwb_cfg_get(dwm1001 * dwm, dwm_uwb_cfg_t *p_cfg);
+
+
+#define DWM_API_USR_DATA_LEN_MAX	34
+/**
+ * @brief Read user data received from the network.
+ *
+ * @param[out] p_data Pointer to a receive buffer
+ * @param[in, out] p_len Pointer to number of bytes to be received, if provided
+ * length is not enough(DWM_ERR_OVERRUN), this parameter contains expected lenght
+ *
+ * @return Error code
+ * @retval > 0 Success
+ * @retval 0 If no user data are available.
+ * @retval DWM_ERR_INTERNAL Internal error
+ * @retval DWM_ERR_OVERRUN If length provided is not enough.
+ * @retval DWM_ERR_INVAL_ADDR Null pointer supplied
+ */
+int dwm_usr_data_read(dwm1001 * dwm, uint8_t* p_data, uint8_t* p_len);
+
+/**
+ * @brief Nonblocking write of user data to the bridge node.
+ *
+ * @param[in] p_data Pointer to the user data
+ * @param[in] len Number of bytes to be written
+ * @param[in] overwrite If true, might overwrite recent data
+ *
+ * @return Error code
+ * @retval len Success
+ * @retval DWM_ERR_BUSY If overwrite == false and the device is busy
+ * handling last request.
+ * @retval DWM_ERR_INTERNAL No backhaul available
+ * @retval DWM_ERR_INVAL_PARAM If length exceeds DWM_USR_DATA_LEN_MAX.
+ * @retval DWM_ERR_INVAL_ADDR Null pointer supplied
+ */
+int dwm_usr_data_write(dwm1001 * dwm, uint8_t* p_data, uint8_t len, bool overwrite);
+
+
+#define DWM_LABEL_LEN_MAX	16
+/**
+ * @brief Reads label from the node
+ *
+ * @param[out] p_label Pointer to label buffer
+ * @param[in, out] p_len Pointer to number of bytes, if provided
+ * length is not enough(DWM_ERR_OVERRUN) then this parameter contains expected
+ * length DWM_LABEL_LEN_MAX
+ *
+ * @return Error code
+ * @retval 0 Success
+ * @retval DWM_ERR_INTERNAL Internal error
+ * @retval DWM_ERR_OVERRUN If length provided is not enough.
+ * @retval DWM_ERR_INVAL_ADDR Null pointer supplied
+ */
+int dwm_label_read(dwm1001 * dwm, uint8_t* p_label, uint8_t* p_len);
+
+/**
+ * @brief Writes label to the node, nonblocking.
+ *
+ * @param[in] p_label Pointer to label bytes
+ * @param[in] len Number of bytes to be written
+ *
+ * @return Error code
+ * @retval len Success
+ * @retval DWM_ERR_INTERNAL Internal error
+ * @retval DWM_ERR_INVAL_PARAM If length exceeds DWM_LABEL_LEN_MAX.
+ * @retval DWM_ERR_INVAL_ADDR Null pointer supplied
+ */
+int dwm_label_write(dwm1001 * dwm, uint8_t* p_label, uint8_t len);
+
+
 
 /**
  * @brief GPIO pins available for the user application
@@ -281,6 +557,96 @@ typedef enum {
 } dwm_gpio_pin_pull_t;
 
 /**
+ * @brief Configures pin as output and sets the pin value
+ *
+ * @param[in] idx, Pin index (see dwm_gpio_idx_t)
+ *
+ * @param[in] value, Initial value of the output pin
+ *
+ * @return Error code
+ */
+int dwm_gpio_cfg_output(dwm1001 * dwm, dwm_gpio_idx_t idx, bool value);
+
+/**
+ * @brief Configures pin as input and sets pull mode
+ *
+ * @param[in] idx, Pin index (see dwm_gpio_idx_t)
+ *
+ * @param[in] pull_mode, Pull mode of the input pin (see dwm_gpio_pin_pull_t)
+ *
+ * @return Error code
+ */
+int dwm_gpio_cfg_input(dwm1001 * dwm, dwm_gpio_idx_t idx, dwm_gpio_pin_pull_t pull_mode);
+
+/**
+ * @brief Sets value of the output pin
+ *
+ * @param[in] idx, Pin index (see dwm_gpio_idx_t)
+ *
+ * @param[in] value, Pin value (0, 1)
+ *
+ * @return Error code
+ */
+int dwm_gpio_value_set(dwm1001 * dwm, dwm_gpio_idx_t idx, bool value);
+
+/**
+ * @brief Gets value of the input pin
+ *
+ * @param[in] idx, Pin index (see dwm_gpio_idx_t)
+ *
+ * @param[out] value, Pointer to the pin value
+ *
+ * @return Error code
+ */
+int dwm_gpio_value_get(dwm1001 * dwm, dwm_gpio_idx_t idx, bool* value);
+
+/**
+ * @brief Toggles value of the output pin
+ *
+ * @param[in] idx, Pin index (see dwm_gpio_idx_t)
+ *
+ * @return Error code
+ */
+int dwm_gpio_value_toggle(dwm1001 * dwm, dwm_gpio_idx_t idx);
+
+/**
+ * @brief Sets PAN ID
+ *
+ * @param[in] panid The id
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ * @retval DWM_ERR_INTERNAL Can't set PAN ID
+ */
+int dwm_panid_set(dwm1001 * dwm, uint16_t panid);
+
+/**
+ * @brief Gets PAN ID
+ *
+ * @param[out] p_panid Pointer to the PAN ID
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ * @retval DWM_ERR_INTERNAL Can't read PAN ID
+ * @retval DWM_ERR_INVAL_ADDR null pointer supplied
+ */
+int dwm_panid_get(dwm1001 * dwm, uint16_t *p_panid);
+
+
+/**
+ * @brief Gets UWB address/ID of the node
+ *
+ * @param[out] p_node_id Pointer to the node ID
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ * @retval DWM_ERR_INTERNAL Can't read node ID
+ * @retval DWM_ERR_INVAL_ADDR null pointer supplied
+ */
+int dwm_node_id_get(dwm1001 * dwm, uint64_t *p_node_id);
+
+
+/**
  * @brief DWM status bits mask
  */ 
 typedef enum {
@@ -310,6 +676,69 @@ typedef struct dwm_status_t {
 	bool fwup_in_progress;
 } dwm_status_t;
 
+/**
+ * @brief Get system status: Location Data ready
+ *
+ * @param[out] status
+ *
+ * @return Error code
+ */
+int dwm_status_get(dwm1001 * dwm, dwm_status_t* p_status);
+
+
+/*
+ * @brief bit definitions for TLV Type request: DWM1001_TLV_TYPE_CMD_INT_CFG
+**/
+/* Interrupts */
+#define DWM1001_INTR_NONE                    0
+#define DWM1001_INTR_LOC_READY				   (1 << 0)	/* location data ready */
+#define DWM1001_INTR_SPI_DATA_READY			   (1 << 1)	/* SPI data ready */
+#define DWM1001_INTR_UWBMAC_STATUS_CHANGED	(1 << 2)	/* UWBMAC status changed */
+#define DWM1001_INTR_UWBMAC_BH_DATA_READY	   (1 << 3)	/* UWBMAC backhaul data ready*/
+#define DWM1001_INTR_UWBMAC_BH_AVAILABLE		(1 << 4)	/* backhaul available */
+#define DWM1001_INTR_UWBMAC_SCAN_RESULT		(1 << 5)	/* UWBMAC scan result */
+#define DWM1001_INTR_UWBMAC_USR_DATA_READY	(1 << 6)	/* new user data ready*/
+#define DWM1001_INTR_UWBMAC_JOINED_CHANGED	(1 << 7)	/* UWBMAC joined */
+#define DWM1001_INTR_UWBMAC_USR_DATA_SENT		(1 << 8)	/* user data TX completed over UWBMAC */
+
+/**
+ * @brief Enables interrupt generation for various events
+ *
+ * @param[in] value, interrupt values among: 
+ * DWM1001_INTR_NONE                   0
+ * DWM1001_INTR_LOC_READY		         (1 << 0)
+ * DWM1001_INTR_SPI_DATA_READY	      (1 << 1)
+ * DWM1001_INTR_BH_STATUS_CHANGED      (1 << 2)
+ * DWM1001_INTR_BH_DATA_READY	         (1 << 3)
+ * DWM1001_INTR_BH_AVAILABLE_CHANGED   (1 << 4)
+ * DWM1001_INTR_UWB_SCAN_READY	      (1 << 5)
+ * DWM1001_INTR_USR_DATA_READY	      (1 << 6)
+ * DWM1001_INTR_UWBMAC_JOINED_CHANGED  (1 << 7)
+ * DWM1001_INTR_UWBMAC_USR_DATA_SENT	(1 << 8)
+ *
+ * @return Error code
+ */
+int dwm_int_cfg_set(dwm1001 * dwm, uint16_t value);
+
+/**
+ * @brief Get status of interrupt generation events
+ *
+ * @param[in] value, interrupt values among: 
+ * DWM1001_INTR_NONE                   0
+ * DWM1001_INTR_LOC_READY		         (1 << 0)
+ * DWM1001_INTR_SPI_DATA_READY	      (1 << 1)
+ * DWM1001_INTR_BH_STATUS_CHANGED      (1 << 2)
+ * DWM1001_INTR_BH_DATA_READY	         (1 << 3)
+ * DWM1001_INTR_BH_AVAILABLE_CHANGED   (1 << 4)
+ * DWM1001_INTR_UWB_SCAN_READY	      (1 << 5)
+ * DWM1001_INTR_USR_DATA_READY	      (1 << 6)
+ * DWM1001_INTR_UWBMAC_JOINED_CHANGED  (1 << 7)
+ * DWM1001_INTR_UWBMAC_USR_DATA_SENT	(1 << 8)
+ *
+ * @return Error code
+ */
+int dwm_int_cfg_get(dwm1001 * dwm, uint16_t *p_value);
+   
 typedef struct {
 	uint16_t node_id;
 	uint8_t bh_seat;
@@ -322,7 +751,18 @@ typedef struct {
 	uint8_t origin_cnt;
 	origin_info_t origin_info[DWM_API_BH_ORIGIN_CNT_MAX];
 }bh_status_t;
+/**
+ * @brief Reads UWBMAC status
+ *
+ * @param[out] p_params->v[0].p_value Pointer to UWBMAC status
+ *
+ * @return 0 if success, > 0 if error
+ */
+int dwm_bh_status_get(dwm1001 * dwm, bh_status_t * p_bh_status);
 
+
+/* Encryption key length */
+#define DWM_ENC_KEY_LEN 16
 /**
  * @brief encryption key
  */
@@ -330,12 +770,84 @@ typedef struct {
 	uint8_t byte[DWM_ENC_KEY_LEN];
 }dwm_enc_key_t;
 
+/**
+ * @brief Sets encryption key. The key is stored in nonvolatile memory.
+ * he key that consists of just zeros is considered as invalid. If key is set,
+ * the node can enable encryption automatically. Automatic enabling of the
+ * encryption is triggered via UWB network when the node detects encrypted
+ * message and is capable of decrypting the messages with the key. BLE option
+ * is disabled when encryption is enabled automatically. The encryption can
+ * be disabled by clearing the key (dwm_enc_key_clear).
+ * This call writes to internal flash in case of new value being set, hence
+ * should not be used frequently and can take in worst case hundreds of
+ * milliseconds! Requires reset for new configuration to take effect.
+ *
+ * @param[in] p_key Pointer to encryption key structure
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ * @retval DWM_ERR_INVAL_INTERNAL key can't be set or key is just all zeros
+ * @retval DWM_ERR_INVAL_ADDR null pointer supplied
+ */
+int dwm_enc_key_set(dwm1001 * dwm, dwm_enc_key_t* p_key);
+
+/**
+ * @brief Clears the encryption key and disables encryption option if
+ * enabled. Does nothing if the key is not set. This call writes to
+ * internal flash in case of new value being set, hence should not be used
+ * frequently and can take in worst case hundreds of milliseconds! Requires
+ * reset for new configuration to take effect.
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ * @retval DWM_ERR_INVAL_INTERNAL can't be cleared
+ */
+int dwm_enc_key_clear(dwm1001 * dwm);
+
+// =======================================================================================
+// =======================================================================================
+// =======================================================================================
+// ================================ internal api for test ================================
+// =======================================================================================
+// =======================================================================================
+// =======================================================================================
+
+/* valid UWB preamble codes */
 typedef enum {
 	DWM_UWB_PRAMBLE_CODE_9 = 9,
 	DWM_UWB_PRAMBLE_CODE_10 = 10,
 	DWM_UWB_PRAMBLE_CODE_11 = 11,
 	DWM_UWB_PRAMBLE_CODE_12 = 12
 } dwm_uwb_preamble_code_t;
+
+/**
+ * @brief Sets UWB preamble code
+ *
+ * @param[in] code One of the preamble codes in dwm_uwb_preamble_code_t
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ *
+ * @retval DWM_ERR_INTERNAL DWM internal error
+ * @retval DWM_ERR_INVAL_PARAM Invalid preamble code
+ */
+int dwm_uwb_preamble_code_set(dwm1001 * dwm, dwm_uwb_preamble_code_t code); // todo
+
+/**
+ * @brief Gets UWB preamble code
+ *
+ * @param[out] p_code Pointer to the preamble code
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ *
+ * @retval DWM_ERR_INVAL_ADDR null pointer supplied
+ * @retval DWM_ERR_INTERNAL DWM internal error
+ */
+int dwm_uwb_preamble_code_get(dwm1001 * dwm, dwm_uwb_preamble_code_t *p_code); // todo
+
+
+#define DWM_UWB_SCAN_RESULT_CNT_MAX 16
 
 /**
  * @brief UWB scan result data
@@ -346,536 +858,54 @@ typedef struct {
 	int8_t rssi[DWM_UWB_SCAN_RESULT_CNT_MAX];
 } dwm_uwb_scan_result_t;
 
+/**
+ * @brief Starts UWB scan
+ *
+ * @return Error code
+ * @retval DWM_OK Success
+ *
+ * @retval DWM_ERR_INTERNAL DWM internal error
+ */
+int dwm_uwb_scan_start(dwm1001 * dwm);
 
-class dwm1001_uart
-{
-public:
-	dwm1001_uart();
-	~dwm1001_uart();
-
-	/**
-	 * @brief Sets position of anchor node
-	 *
-	 * @param[in] pos, pointer to position coordinates
-	 *
-	 * @return Error code
-	 */
-	int dwm_pos_set(dwm_pos_t* pos);
-
-	/**
-	 * @brief Sets position of anchor node, can be used when one does not
-	 * want to set all coordinates
-	 *
-	 * @param[in] p_x Pointer to x coordinate (millimeters), ignored if null
-	 * @param[in] p_y Pointer to y coordinate (millimeters), ignored if null
-	 * @param[in] p_z Pointer to z coordinate (millimeters), ignored if null
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 * @retval DWM_ERR_INTERNAL Position can't be read
-	 */
-	int dwm_pos_set_xyz(int32_t* p_x, int32_t* p_y, int32_t* p_z);
-
-	/**
-	 * @brief Gets position of the node
-	 *
-	 * @param[out] pos, pointer to position
-	 *
-	 * @return Error code
-	 */
-	int dwm_pos_get(dwm_pos_t* pos);
-
-	/**
-	 * @brief Sets update rate
-	 *
-	 * @param[in] ur, Update rate in multiply of 100 ms, [min,max] = [DWM_UPD_RATE_MIN, DWM_UPD_RATE_MAX]
-	 * @param[in] urs, Stationary update rate in multiply of 100 ms, [min,max] = [DWM_UPD_RATE_MIN, DWM_UPD_RATE_MAX]
-	 *
-	 * @return Error code
-	 */
-	int dwm_upd_rate_set(uint16_t ur, uint16_t urs);
-
-	/**
-	 * @brief Gets update rate
-	 *
-	 * @param[out] ur, Pointer to update rate, update rate is multiply of 100 ms
-	 * [min,max] = [DWM_UPD_RATE_MIN, DWM_UPD_RATE_MAX]
-	 * @param[out] urs, Pointer to stationary update rate, update rate is multiply of 100 ms
-	 * [min,max] = [DWM_UPD_RATE_MIN, DWM_UPD_RATE_MAX]
-	 *
-	 * @return Error code
-	 */
-	int dwm_upd_rate_get(uint16_t *ur, uint16_t *urs);
-
-	/**
-	 * @brief Configures node to tag mode with given options
-	 *
-	 * @param[in] cfg, Tag configuration options
-	 *
-	 * @return Error code
-	 */
-	int dwm_cfg_tag_set(dwm_cfg_tag_t* cfg);
-
-	/**
-	 * @brief Configures node to anchor mode with given options
-	 *
-	 * @param[in] cfg, Anchor configuration options
-	 *
-	 * @return Error code
-	 */
-	int dwm_cfg_anchor_set(dwm_cfg_anchor_t* cfg);
-
-	/**
-	 * @brief Reads configuration of the node
-	 *
-	 * @param[out] cfg, Node configuration
-	 *
-	 * @return Error code
-	 */
-	int dwm_cfg_get(dwm_cfg_t* cfg);
-
-	/**
-	 * @brief Puts device to sleep mode
-	 *
-	 * @return Error code
-	 */
-	int dwm_sleep(void);
-
-	/**
-	 * @brief Reads list of surrounding anchors. Works for anchors only.
-	 * Anchors in the list can be from the same network or from
-	 * the neighbor network as well.
-	 *
-	 * @param[out] p_list
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 * @retval DWM_ERR_INVAL_ADDR null pointer
-	 * @retval DWM_ERR_INTERNAL internal error
-	 */
-	int dwm_anchor_list_get(dwm_anchor_list_t* p_list);
-
-	/**
-	 * @brief Gets location data
-	 *
-	 * @param[out] loc Pointer to location data
-	 *
-	 * @return Error code
-	 */
-	int dwm_loc_get(dwm_loc_data_t* loc);
-
-	/**
-	 * @brief Sets the public BLE address used by device. New address takes effect after reset. 
-	 *    This call do a write to internal flash in case of new value being set, hence should 
-	 *    not be used frequently and can take in worst case hundreds of milliseconds
-	 *
-	 * @param[in] baddr, ble address in little endian.
-	 *
-	 * @return Error code
-	 */
-	int dwm_baddr_set(dwm_baddr_t* baddr);
-
-	/**
-	 * @brief Gets the current BLE address used by device.
-	 *
-	 * @param[out] baddr, ble address in little endian.
-	 *
-	 * @return Error code
-	 */
-	int dwm_baddr_get(dwm_baddr_t* baddr);
-
-	/**
-	 * @brief Writes configuration of the stationary mode which is used by tag node. The configuration
-	 * can be written even if stationary detection is disabled (see dwm_cfg_tag_set). Writes internal non-volatile memory
-	 * so should be used carefully. New sensitivity setting takes effect immediately if stationary mode is enabled. Default
-	 * sensitivity is “HIGH”.
-	 *
-	 * @param[in] sensitivity Stationary sensitivity
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 * @retval DWM_ERR_INTERNAL failed to write configuration
-	 * @retval DWM_ERR_INVAL_PARAM unknown sensitivity level
-	 */
-	int dwm_stnry_cfg_set(dwm_stnry_sensitivity_t sensitivity);
-
-	/**
-	 * @brief Reads configuration of the stationary mode which is used by tag node. The
-	 * configuration can be read even if stationary detection is disabled.
-	 *
-	 * @param[out] p_sensitivity Pointer to stationary sensitivity
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 * @retval DWM_ERR_INTERNAL failed to read configuration
-	 * @retval DWM_ERR_INVAL_ADDR null pointer supplied
-	 */
-	int dwm_stnry_cfg_get(dwm_stnry_sensitivity_t* p_sensitivity);
-
-	/**
-	 * @brief Resets DWM module
-	 *
-	 * @return Error code
-	 */
-	int dwm_reset(void);
-
-	/**
-	 * @brief Puts node to factory settings. Environment is erased and set to
-	 * default state. Resets the node. This call does a write to internal flash,
-	 * hence should not be used frequently and can take in worst case
-	 * hundreds of milliseconds!
-	 */
-	int dwm_factory_reset(void);
-
-	/**
-	 * @brief Gets versions
-	 *
-	 * @param[out] ver, pointer to version data
-	 *
-	 * @return Error code
-	 */
-	int dwm_ver_get(dwm_ver_t* ver);
-
-	/**
-	 * @brief Sets UWB configuration parameters
-	 *
-	 * @param[in] p_cfg Configuration parameters
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 * @retval DWM_ERR_INTERNAL
-	 * @retval DWM_ERR_INVAL_ADDR null pointer supplied
-	 */
-	int dwm_uwb_cfg_set(dwm_uwb_cfg_t *p_cfg);
-
-	/**
-	 * @brief Gets UWB configuration parameters
-	 *
-	 * @param[out] p_cfg Configuration parameters
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 * @retval DWM_ERR_INTERNAL Can't get configuration
-	 * @retval DWM_ERR_INVAL_ADDR null pointer supplied
-	 */
-	int dwm_uwb_cfg_get(dwm_uwb_cfg_t *p_cfg);
-
-	/**
-	 * @brief Read user data received from the network.
-	 *
-	 * @param[out] p_data Pointer to a receive buffer
-	 * @param[in, out] p_len Pointer to number of bytes to be received, if provided
-	 * length is not enough(DWM_ERR_OVERRUN), this parameter contains expected lenght
-	 *
-	 * @return Error code
-	 * @retval > 0 Success
-	 * @retval 0 If no user data are available.
-	 * @retval DWM_ERR_INTERNAL Internal error
-	 * @retval DWM_ERR_OVERRUN If length provided is not enough.
-	 * @retval DWM_ERR_INVAL_ADDR Null pointer supplied
-	 */
-	int dwm_usr_data_read(uint8_t* p_data, uint8_t* p_len);
-
-	/**
-	 * @brief Nonblocking write of user data to the bridge node.
-	 *
-	 * @param[in] p_data Pointer to the user data
-	 * @param[in] len Number of bytes to be written
-	 * @param[in] overwrite If true, might overwrite recent data
-	 *
-	 * @return Error code
-	 * @retval len Success
-	 * @retval DWM_ERR_BUSY If overwrite == false and the device is busy
-	 * handling last request.
-	 * @retval DWM_ERR_INTERNAL No backhaul available
-	 * @retval DWM_ERR_INVAL_PARAM If length exceeds DWM_USR_DATA_LEN_MAX.
-	 * @retval DWM_ERR_INVAL_ADDR Null pointer supplied
-	 */
-	int dwm_usr_data_write(uint8_t* p_data, uint8_t len, bool overwrite);
-
-	/**
-	 * @brief Reads label from the node
-	 *
-	 * @param[out] p_label Pointer to label buffer
-	 * @param[in, out] p_len Pointer to number of bytes, if provided
-	 * length is not enough(DWM_ERR_OVERRUN) then this parameter contains expected
-	 * length DWM_LABEL_LEN_MAX
-	 *
-	 * @return Error code
-	 * @retval 0 Success
-	 * @retval DWM_ERR_INTERNAL Internal error
-	 * @retval DWM_ERR_OVERRUN If length provided is not enough.
-	 * @retval DWM_ERR_INVAL_ADDR Null pointer supplied
-	 */
-	int dwm_label_read(uint8_t* p_label, uint8_t* p_len);
-
-	/**
-	 * @brief Writes label to the node, nonblocking.
-	 *
-	 * @param[in] p_label Pointer to label bytes
-	 * @param[in] len Number of bytes to be written
-	 *
-	 * @return Error code
-	 * @retval len Success
-	 * @retval DWM_ERR_INTERNAL Internal error
-	 * @retval DWM_ERR_INVAL_PARAM If length exceeds DWM_LABEL_LEN_MAX.
-	 * @retval DWM_ERR_INVAL_ADDR Null pointer supplied
-	 */
-	int dwm_label_write(uint8_t* p_label, uint8_t len);
-
-	/**
-	 * @brief Configures pin as output and sets the pin value
-	 *
-	 * @param[in] idx, Pin index (see dwm_gpio_idx_t)
-	 *
-	 * @param[in] value, Initial value of the output pin
-	 *
-	 * @return Error code
-	 */
-	int dwm_gpio_cfg_output(dwm_gpio_idx_t idx, bool value);
-
-	/**
-	 * @brief Configures pin as input and sets pull mode
-	 *
-	 * @param[in] idx, Pin index (see dwm_gpio_idx_t)
-	 *
-	 * @param[in] pull_mode, Pull mode of the input pin (see dwm_gpio_pin_pull_t)
-	 *
-	 * @return Error code
-	 */
-	int dwm_gpio_cfg_input(dwm_gpio_idx_t idx, dwm_gpio_pin_pull_t pull_mode);
-
-	/**
-	 * @brief Sets value of the output pin
-	 *
-	 * @param[in] idx, Pin index (see dwm_gpio_idx_t)
-	 *
-	 * @param[in] value, Pin value (0, 1)
-	 *
-	 * @return Error code
-	 */
-	int dwm_gpio_value_set(dwm_gpio_idx_t idx, bool value);
-
-	/**
-	 * @brief Gets value of the input pin
-	 *
-	 * @param[in] idx, Pin index (see dwm_gpio_idx_t)
-	 *
-	 * @param[out] value, Pointer to the pin value
-	 *
-	 * @return Error code
-	 */
-	int dwm_gpio_value_get(dwm_gpio_idx_t idx, bool* value);
-
-	/**
-	 * @brief Toggles value of the output pin
-	 *
-	 * @param[in] idx, Pin index (see dwm_gpio_idx_t)
-	 *
-	 * @return Error code
-	 */
-	int dwm_gpio_value_toggle(dwm_gpio_idx_t idx);
-
-	/**
-	 * @brief Sets PAN ID
-	 *
-	 * @param[in] panid The id
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 * @retval DWM_ERR_INTERNAL Can't set PAN ID
-	 */
-	int dwm_panid_set(uint16_t panid);
-
-	/**
-	 * @brief Gets PAN ID
-	 *
-	 * @param[out] p_panid Pointer to the PAN ID
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 * @retval DWM_ERR_INTERNAL Can't read PAN ID
-	 * @retval DWM_ERR_INVAL_ADDR null pointer supplied
-	 */
-	int dwm_panid_get(uint16_t *p_panid);
-
-	/**
-	 * @brief Gets UWB address/ID of the node
-	 *
-	 * @param[out] p_node_id Pointer to the node ID
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 * @retval DWM_ERR_INTERNAL Can't read node ID
-	 * @retval DWM_ERR_INVAL_ADDR null pointer supplied
-	 */
-	int dwm_node_id_get(uint64_t *p_node_id);
-
-	/**
-	 * @brief Get system status: Location Data ready
-	 *
-	 * @param[out] status
-	 *
-	 * @return Error code
-	 */
-	int dwm_status_get(dwm_status_t* p_status);
-
-	/**
-	 * @brief Enables interrupt generation for various events
-	 *
-	 * @param[in] value, interrupt values among: 
-	 * DWM1001_INTR_NONE                   0
-	 * DWM1001_INTR_LOC_READY		         (1 << 0)
-	 * DWM1001_INTR_SPI_DATA_READY	      (1 << 1)
-	 * DWM1001_INTR_BH_STATUS_CHANGED      (1 << 2)
-	 * DWM1001_INTR_BH_DATA_READY	         (1 << 3)
-	 * DWM1001_INTR_BH_AVAILABLE_CHANGED   (1 << 4)
-	 * DWM1001_INTR_UWB_SCAN_READY	      (1 << 5)
-	 * DWM1001_INTR_USR_DATA_READY	      (1 << 6)
-	 * DWM1001_INTR_UWBMAC_JOINED_CHANGED  (1 << 7)
-	 * DWM1001_INTR_UWBMAC_USR_DATA_SENT	(1 << 8)
-	 *
-	 * @return Error code
-	 */
-	int dwm_int_cfg_set(uint16_t value);
-
-	/**
-	 * @brief Get status of interrupt generation events
-	 *
-	 * @param[in] value, interrupt values among: 
-	 * DWM1001_INTR_NONE                   0
-	 * DWM1001_INTR_LOC_READY		         (1 << 0)
-	 * DWM1001_INTR_SPI_DATA_READY	      (1 << 1)
-	 * DWM1001_INTR_BH_STATUS_CHANGED      (1 << 2)
-	 * DWM1001_INTR_BH_DATA_READY	         (1 << 3)
-	 * DWM1001_INTR_BH_AVAILABLE_CHANGED   (1 << 4)
-	 * DWM1001_INTR_UWB_SCAN_READY	      (1 << 5)
-	 * DWM1001_INTR_USR_DATA_READY	      (1 << 6)
-	 * DWM1001_INTR_UWBMAC_JOINED_CHANGED  (1 << 7)
-	 * DWM1001_INTR_UWBMAC_USR_DATA_SENT	(1 << 8)
-	 *
-	 * @return Error code
-	 */
-	int dwm_int_cfg_get(uint16_t *p_value);
-
-	/**
-	 * @brief Reads UWBMAC status
-	 *
-	 * @param[out] p_params->v[0].p_value Pointer to UWBMAC status
-	 *
-	 * @return 0 if success, > 0 if error
-	 */
-	int dwm_bh_status_get(bh_status_t * p_bh_status);
-
-	/**
-	 * @brief Sets encryption key. The key is stored in nonvolatile memory.
-	 * he key that consists of just zeros is considered as invalid. If key is set,
-	 * the node can enable encryption automatically. Automatic enabling of the
-	 * encryption is triggered via UWB network when the node detects encrypted
-	 * message and is capable of decrypting the messages with the key. BLE option
-	 * is disabled when encryption is enabled automatically. The encryption can
-	 * be disabled by clearing the key (dwm_enc_key_clear).
-	 * This call writes to internal flash in case of new value being set, hence
-	 * should not be used frequently and can take in worst case hundreds of
-	 * milliseconds! Requires reset for new configuration to take effect.
-	 *
-	 * @param[in] p_key Pointer to encryption key structure
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 * @retval DWM_ERR_INVAL_INTERNAL key can't be set or key is just all zeros
-	 * @retval DWM_ERR_INVAL_ADDR null pointer supplied
-	 */
-	int dwm_enc_key_set(dwm_enc_key_t* p_key);
-
-	/**
-	 * @brief Clears the encryption key and disables encryption option if
-	 * enabled. Does nothing if the key is not set. This call writes to
-	 * internal flash in case of new value being set, hence should not be used
-	 * frequently and can take in worst case hundreds of milliseconds! Requires
-	 * reset for new configuration to take effect.
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 * @retval DWM_ERR_INVAL_INTERNAL can't be cleared
-	 */
-	int dwm_enc_key_clear(void);
-
-	/**
-	 * @brief Sets UWB preamble code
-	 *
-	 * @param[in] code One of the preamble codes in dwm_uwb_preamble_code_t
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 *
-	 * @retval DWM_ERR_INTERNAL DWM internal error
-	 * @retval DWM_ERR_INVAL_PARAM Invalid preamble code
-	 */
-	int dwm_uwb_preamble_code_set(dwm_uwb_preamble_code_t code); // todo
-
-	
-	/**
-	 * @brief Gets UWB preamble code
-	 *
-	 * @param[out] p_code Pointer to the preamble code
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 *
-	 * @retval DWM_ERR_INVAL_ADDR null pointer supplied
-	 * @retval DWM_ERR_INTERNAL DWM internal error
-	 */
-	int dwm_uwb_preamble_code_get(dwm_uwb_preamble_code_t *p_code); // todo
-
-	/**
-	 * @brief Starts UWB scan
-	 *
-	 * @return Error code
-	 * @retval DWM_OK Success
-	 *
-	 * @retval DWM_ERR_INTERNAL DWM internal error
-	 */
-	int dwm_uwb_scan_start(void);
-
-	/**
-	 * @brief Read latest UWB scan result
-	 *
-	 * @param[out] p_result The scan result data pointer 
-	 * output = err_code, mode, rssi, [mode, rssi]
-	 * mode = 1 byte, unsigned integer
-	 mode 0: 
-		channel=5 
-		PRF=64 
-		PREAMBLE_LENGTH=128 
-		PAC_SIZE=8 
-		TXCODE=9 
-		RXCODE=9 
-		STANDARD_FRAME_DELIM=0 
-		BAUD_RATE=6800 
-		PHR_EXTENDED 
-		SFD_TIMEOUT=129 
-		SMARTPOWER=1 
-	mode 1: 
-		channel=5 
-		PRF=16 
-		PREAMBLE_LENGTH=128 
-		PAC_SIZE=8 
-		TXCODE=9 
-		RXCODE=9 
-		STANDARD_FRAME_DELIM=0 
-		BAUD_RATE=6800 
-		PHR_EXTENDED 
-		SFD_TIMEOUT=129 
-		SMARTPOWER=1      
-	* rssi = 1 byte, signed integer (* UWB signal strength indication in dB*)
-	* @return Error code
-	* @retval DWM_OK Success
-	*
-	* @retval DWM_ERR_INTERNAL DWM internal error
-	* @retval DWM_ERR_INVAL_ADDR null pointer supplied
-	*/
-	int dwm_uwb_scan_result_get(dwm_uwb_scan_result_t *p_result);
-};
+/**
+ * @brief Read latest UWB scan result
+ *
+ * @param[out] p_result The scan result data pointer 
+ * output = err_code, mode, rssi, [mode, rssi]
+ * mode = 1 byte, unsigned integer
+   mode 0: 
+      channel=5 
+      PRF=64 
+      PREAMBLE_LENGTH=128 
+      PAC_SIZE=8 
+      TXCODE=9 
+      RXCODE=9 
+      STANDARD_FRAME_DELIM=0 
+      BAUD_RATE=6800 
+      PHR_EXTENDED 
+      SFD_TIMEOUT=129 
+      SMARTPOWER=1 
+   mode 1: 
+      channel=5 
+      PRF=16 
+      PREAMBLE_LENGTH=128 
+      PAC_SIZE=8 
+      TXCODE=9 
+      RXCODE=9 
+      STANDARD_FRAME_DELIM=0 
+      BAUD_RATE=6800 
+      PHR_EXTENDED 
+      SFD_TIMEOUT=129 
+      SMARTPOWER=1      
+ * rssi = 1 byte, signed integer (* UWB signal strength indication in dB*)
+ * @return Error code
+ * @retval DWM_OK Success
+ *
+ * @retval DWM_ERR_INTERNAL DWM internal error
+ * @retval DWM_ERR_INVAL_ADDR null pointer supplied
+ */
+int dwm_uwb_scan_result_get(dwm1001 * dwm, dwm_uwb_scan_result_t *p_result);
 
 #endif //_DWM_API_H_
+

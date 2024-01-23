@@ -12,27 +12,38 @@
 
 #include "dwm_api.h"
 #include <string.h>
+#include <stdio.h>   /* Standard input/output definitions */ 
+#include <unistd.h>  /* Linuxstandard function definitions*/ 
+#include <fcntl.h>   /* File control definitions*/ 
+#include <errno.h>   /* Error number definitions*/ 
+#include <termios.h> /* POSIX terminal control definitions*/  
 
 #define RESP_ERRNO_LEN           3
 #define RESP_DAT_TYPE_OFFSET     RESP_ERRNO_LEN
 #define RESP_DAT_LEN_OFFSET      RESP_DAT_TYPE_OFFSET+1
 #define RESP_DAT_VALUE_OFFSET    RESP_DAT_LEN_OFFSET+1
 
-class dwm1001 {
-   
-}
-
-void dwm_init(void)
+dwm1001 * dwm_init(char * serial_port)
 {
-   LMH_Init();
+   int fd;
+   fd = open(serial_port, O_RDWR | O_NOCTTY | O_NDELAY); 
+   if (fd == -1)
+   {
+      perror("open_port: Unable to open /dev/ttyS0 - ");
+   }
+   else
+   {
+      fcntl(fd, F_SETFL, 0);
+   }
+   return (fd);   
 }
 
-void dwm_deinit(void)
+void dwm_deinit(dwm1001 * dwm)
 {
    LMH_DeInit();
 }
 
-int dwm_pos_set(dwm_pos_t* pos)
+int dwm_pos_set(dwm1001 * dwm, dwm_pos_t* pos)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -50,7 +61,7 @@ int dwm_pos_set(dwm_pos_t* pos)
    return LMH_WaitForRx(rx_data, &rx_len, 3);
 }
 
-int dwm_pos_get(dwm_pos_t* p_pos)
+int dwm_pos_get(dwm1001 * dwm, dwm_pos_t* p_pos)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -83,7 +94,7 @@ int dwm_pos_get(dwm_pos_t* p_pos)
    return RV_ERR;
 }
 
-int dwm_upd_rate_set(uint16_t ur, uint16_t ur_static)
+int dwm_upd_rate_set(dwm1001 * dwm, uint16_t ur, uint16_t ur_static)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -98,7 +109,7 @@ int dwm_upd_rate_set(uint16_t ur, uint16_t ur_static)
    return LMH_WaitForRx(rx_data, &rx_len, 3);   
 }
 
-int dwm_upd_rate_get(uint16_t *ur, uint16_t *ur_static)
+int dwm_upd_rate_get(dwm1001 * dwm, uint16_t *ur, uint16_t *ur_static)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -119,7 +130,7 @@ int dwm_upd_rate_get(uint16_t *ur, uint16_t *ur_static)
    return RV_ERR;
 }
 
-int dwm_cfg_tag_set(dwm_cfg_tag_t* cfg) 
+int dwm_cfg_tag_set(dwm1001 * dwm, dwm_cfg_tag_t* cfg) 
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -139,7 +150,7 @@ int dwm_cfg_tag_set(dwm_cfg_tag_t* cfg)
    return LMH_WaitForRx(rx_data, &rx_len, 3);   
 }
 
-int dwm_cfg_anchor_set(dwm_cfg_anchor_t* cfg)
+int dwm_cfg_anchor_set(dwm1001 * dwm, dwm_cfg_anchor_t* cfg)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -158,7 +169,7 @@ int dwm_cfg_anchor_set(dwm_cfg_anchor_t* cfg)
    return LMH_WaitForRx(rx_data, &rx_len, 3);   
 }
 
-int dwm_cfg_get(dwm_cfg_t* cfg)
+int dwm_cfg_get(dwm1001 * dwm, dwm_cfg_t* cfg)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -187,7 +198,7 @@ int dwm_cfg_get(dwm_cfg_t* cfg)
    return RV_ERR;
 }
 
-int dwm_sleep(void)
+int dwm_sleep(dwm1001 * dwm)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -199,7 +210,7 @@ int dwm_sleep(void)
 }
 
 #define RESP_DATA_ANLIST_CNT_MAX     14
-int dwm_anchor_list_get(dwm_anchor_list_t *p_list)
+int dwm_anchor_list_get(dwm1001 * dwm, dwm_anchor_list_t *p_list)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -263,7 +274,7 @@ int dwm_anchor_list_get(dwm_anchor_list_t *p_list)
 #define RESP_DATA_LOC_LOC_SIZE     15
 #define RESP_DATA_LOC_DIST_OFFSET  RESP_DAT_TYPE_OFFSET + RESP_DATA_LOC_LOC_SIZE
 #define RESP_DATA_LOC_DIST_LEN_MIN 3
-int dwm_loc_get(dwm_loc_data_t* loc)
+int dwm_loc_get(dwm1001 * dwm, dwm_loc_data_t* loc)
 { 
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -378,7 +389,7 @@ int dwm_loc_get(dwm_loc_data_t* loc)
    return RV_OK;
 }
 
-int dwm_baddr_set(dwm_baddr_t* p_baddr)
+int dwm_baddr_set(dwm1001 * dwm, dwm_baddr_t* p_baddr)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -395,7 +406,7 @@ int dwm_baddr_set(dwm_baddr_t* p_baddr)
    return LMH_WaitForRx(rx_data, &rx_len, 3);   
 }
 
-int dwm_baddr_get(dwm_baddr_t* p_baddr)
+int dwm_baddr_get(dwm1001 * dwm, dwm_baddr_t* p_baddr)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -418,7 +429,7 @@ int dwm_baddr_get(dwm_baddr_t* p_baddr)
    return RV_ERR;
 }
 
-int dwm_stnry_cfg_set(dwm_stnry_sensitivity_t sensitivity)
+int dwm_stnry_cfg_set(dwm1001 * dwm, dwm_stnry_sensitivity_t sensitivity)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -434,7 +445,7 @@ int dwm_stnry_cfg_set(dwm_stnry_sensitivity_t sensitivity)
    return LMH_WaitForRx(rx_data, &rx_len, 3);   
 }
 
-int dwm_stnry_cfg_get(dwm_stnry_sensitivity_t* p_sensitivity)
+int dwm_stnry_cfg_get(dwm1001 * dwm, dwm_stnry_sensitivity_t* p_sensitivity)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -450,7 +461,7 @@ int dwm_stnry_cfg_get(dwm_stnry_sensitivity_t* p_sensitivity)
    return RV_ERR;
 }
 
-int dwm_factory_reset(void)
+int dwm_factory_reset(dwm1001 * dwm)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -461,7 +472,7 @@ int dwm_factory_reset(void)
    return LMH_WaitForRx(rx_data, &rx_len, 3);   
 }  
 
-int dwm_reset(void)
+int dwm_reset(dwm1001 * dwm)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -472,7 +483,7 @@ int dwm_reset(void)
    return LMH_WaitForRx(rx_data, &rx_len, 3);   
 }
 
-int dwm_ver_get(dwm_ver_t* ver)
+int dwm_ver_get(dwm1001 * dwm, dwm_ver_t* ver)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -532,7 +543,7 @@ int dwm_ver_get(dwm_ver_t* ver)
    return RV_ERR;
 }
 
-int dwm_uwb_cfg_set(dwm_uwb_cfg_t* p_cfg) 
+int dwm_uwb_cfg_set(dwm1001 * dwm, dwm_uwb_cfg_t* p_cfg) 
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -548,7 +559,7 @@ int dwm_uwb_cfg_set(dwm_uwb_cfg_t* p_cfg)
    return LMH_WaitForRx(rx_data, &rx_len, 3);   
 }
 
-int dwm_uwb_cfg_get(dwm_uwb_cfg_t* p_cfg) 
+int dwm_uwb_cfg_get(dwm1001 * dwm, dwm_uwb_cfg_t* p_cfg) 
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -576,7 +587,7 @@ int dwm_uwb_cfg_get(dwm_uwb_cfg_t* p_cfg)
    return RV_ERR;
 }
 
-int dwm_usr_data_read(uint8_t* p_data, uint8_t* p_len)
+int dwm_usr_data_read(dwm1001 * dwm, uint8_t* p_data, uint8_t* p_len)
 {     
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -605,7 +616,7 @@ int dwm_usr_data_read(uint8_t* p_data, uint8_t* p_len)
    return RV_ERR;   
 }
 
-int dwm_usr_data_write(uint8_t* p_data, uint8_t len, bool overwrite)
+int dwm_usr_data_write(dwm1001 * dwm, uint8_t* p_data, uint8_t len, bool overwrite)
 {        
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -623,7 +634,7 @@ int dwm_usr_data_write(uint8_t* p_data, uint8_t len, bool overwrite)
    return LMH_WaitForRx(rx_data, &rx_len, 3);
 }
 
-int dwm_label_read(uint8_t* p_label, uint8_t* p_len)
+int dwm_label_read(dwm1001 * dwm, uint8_t* p_label, uint8_t* p_len)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -652,7 +663,7 @@ int dwm_label_read(uint8_t* p_label, uint8_t* p_len)
    return RV_ERR;   
 }
 
-int dwm_label_write(uint8_t* p_label, uint8_t len)
+int dwm_label_write(dwm1001 * dwm, uint8_t* p_label, uint8_t len)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -669,10 +680,7 @@ int dwm_label_write(uint8_t* p_label, uint8_t len)
    return LMH_WaitForRx(rx_data, &rx_len, 3);
 }
 
-
-
-
-int dwm_gpio_cfg_output(dwm_gpio_idx_t idx, bool value)
+int dwm_gpio_cfg_output(dwm1001 * dwm, dwm_gpio_idx_t idx, bool value)
 {      
    if(LMH_CheckGPIOIdx(idx)!= RV_OK)
    {
@@ -689,7 +697,7 @@ int dwm_gpio_cfg_output(dwm_gpio_idx_t idx, bool value)
    return LMH_WaitForRx(rx_data, &rx_len, 3);
 }
 
-int dwm_gpio_cfg_input(dwm_gpio_idx_t idx, dwm_gpio_pin_pull_t pull_mode)
+int dwm_gpio_cfg_input(dwm1001 * dwm, dwm_gpio_idx_t idx, dwm_gpio_pin_pull_t pull_mode)
 {      
    if(LMH_CheckGPIOIdx(idx)!= RV_OK)
    {
@@ -706,7 +714,7 @@ int dwm_gpio_cfg_input(dwm_gpio_idx_t idx, dwm_gpio_pin_pull_t pull_mode)
    return LMH_WaitForRx(rx_data, &rx_len, 3);
 }
 
-int dwm_gpio_value_set(dwm_gpio_idx_t idx, bool value)
+int dwm_gpio_value_set(dwm1001 * dwm, dwm_gpio_idx_t idx, bool value)
 {
    if(LMH_CheckGPIOIdx(idx)!= RV_OK)
    {
@@ -723,7 +731,7 @@ int dwm_gpio_value_set(dwm_gpio_idx_t idx, bool value)
    return LMH_WaitForRx(rx_data, &rx_len, 3);
 }
 
-int dwm_gpio_value_get(dwm_gpio_idx_t idx, bool* p_value)
+int dwm_gpio_value_get(dwm1001 * dwm, dwm_gpio_idx_t idx, bool* p_value)
 {
    if(LMH_CheckGPIOIdx(idx)!= RV_OK)
    {
@@ -744,7 +752,7 @@ int dwm_gpio_value_get(dwm_gpio_idx_t idx, bool* p_value)
    return RV_ERR;
 }
 
-int dwm_gpio_value_toggle(dwm_gpio_idx_t idx)
+int dwm_gpio_value_toggle(dwm1001 * dwm, dwm_gpio_idx_t idx)
 {
    if(LMH_CheckGPIOIdx(idx)!= RV_OK)
    {
@@ -760,7 +768,7 @@ int dwm_gpio_value_toggle(dwm_gpio_idx_t idx)
    return LMH_WaitForRx(rx_data, &rx_len, 3);
 }
 
-int dwm_panid_set(uint16_t value)
+int dwm_panid_set(dwm1001 * dwm, uint16_t value)
 {        
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -773,7 +781,7 @@ int dwm_panid_set(uint16_t value)
    return LMH_WaitForRx(rx_data, &rx_len, 3);
 }
 
-int dwm_panid_get(uint16_t* p_value)
+int dwm_panid_get(dwm1001 * dwm, uint16_t* p_value)
 {        
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -789,7 +797,7 @@ int dwm_panid_get(uint16_t* p_value)
    return RV_ERR;
 }
 
-int dwm_node_id_get(uint64_t *p_node_id)
+int dwm_node_id_get(dwm1001 * dwm, uint64_t *p_node_id)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -814,7 +822,7 @@ int dwm_node_id_get(uint64_t *p_node_id)
    return RV_ERR; 
 }
 
-int dwm_status_get(dwm_status_t* p_status)
+int dwm_status_get(dwm1001 * dwm, dwm_status_t* p_status)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -840,7 +848,7 @@ int dwm_status_get(dwm_status_t* p_status)
    return RV_ERR;
 }
 
-int dwm_int_cfg_set(uint16_t value)
+int dwm_int_cfg_set(dwm1001 * dwm, uint16_t value)
 {        
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -853,7 +861,7 @@ int dwm_int_cfg_set(uint16_t value)
    return LMH_WaitForRx(rx_data, &rx_len, 3);
 }
 
-int dwm_int_cfg_get(uint16_t *p_value)
+int dwm_int_cfg_get(dwm1001 * dwm, uint16_t *p_value)
 {        
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -869,7 +877,7 @@ int dwm_int_cfg_get(uint16_t *p_value)
    return RV_ERR;
 }
 
-int dwm_bh_status_get(bh_status_t * p_bh_status)
+int dwm_bh_status_get(dwm1001 * dwm, bh_status_t * p_bh_status)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -914,7 +922,7 @@ int dwm_bh_status_get(bh_status_t * p_bh_status)
    return RV_ERR;
 }
          
-int dwm_enc_key_set(dwm_enc_key_t* p_key)
+int dwm_enc_key_set(dwm1001 * dwm, dwm_enc_key_t* p_key)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -930,7 +938,7 @@ int dwm_enc_key_set(dwm_enc_key_t* p_key)
    return LMH_WaitForRx(rx_data, &rx_len, 3);
 }
    
-int dwm_enc_key_clear(void)
+int dwm_enc_key_clear(dwm1001 * dwm)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -949,7 +957,7 @@ int dwm_enc_key_clear(void)
 // =======================================================================================
 // =======================================================================================
 
-int dwm_uwb_preamble_code_set(dwm_uwb_preamble_code_t code)
+int dwm_uwb_preamble_code_set(dwm1001 * dwm, dwm_uwb_preamble_code_t code)
 {        
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -961,7 +969,7 @@ int dwm_uwb_preamble_code_set(dwm_uwb_preamble_code_t code)
    return LMH_WaitForRx(rx_data, &rx_len, 3);
 }
 
-int dwm_uwb_preamble_code_get(dwm_uwb_preamble_code_t *p_code)
+int dwm_uwb_preamble_code_get(dwm1001 * dwm, dwm_uwb_preamble_code_t *p_code)
 {
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -977,7 +985,7 @@ int dwm_uwb_preamble_code_get(dwm_uwb_preamble_code_t *p_code)
    return RV_ERR;
 }
 
-int dwm_uwb_scan_start(void)
+int dwm_uwb_scan_start(dwm1001 * dwm)
 {        
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
@@ -988,7 +996,7 @@ int dwm_uwb_scan_start(void)
    return LMH_WaitForRx(rx_data, &rx_len, 3);
 }
 
-int dwm_uwb_scan_result_get(dwm_uwb_scan_result_t *p_result)
+int dwm_uwb_scan_result_get(dwm1001 * dwm, dwm_uwb_scan_result_t *p_result)
 {        
    uint8_t tx_data[DWM1001_TLV_MAX_SIZE], tx_len = 0;
    uint8_t rx_data[DWM1001_TLV_MAX_SIZE];
