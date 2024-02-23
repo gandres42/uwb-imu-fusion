@@ -1,12 +1,15 @@
 import navx
 import time
 from decawave_1001_uart import Decawave1001Driver
-import os
 from threading import Thread, Lock
 from kalman import Kalman
+from networktables import NetworkTables
+import socket
+
+HOST = '0.0.0.0'
+PORT = 9000
 
 active = True
-
 gyron = navx.AHRS("/dev/ttyACM1")
 dwm = Decawave1001Driver("/dev/ttyACM0")
 ot = None
@@ -15,28 +18,44 @@ gyron.zero_yaw()
 
 px, py, pz = 0, 0, 0
 
+def client_accept():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((HOST, PORT))
+        s.listen()
+        print('listening!')
+        conn, addr = s.accept()
+        with conn:
+            print(f"Connected by {addr}")
+            while True:
+                data = conn.recv(1024)
+                if not data:
+                    break
+                conn.sendall(data)    
+
 def fancyprint(num):
     if num >= 0:
         print(" ", end="")
     print(num)
 
 def imu_collection():
-    global ot, px, py, pz
+    global ot, px, py, pz, sd
     while active:
         if ot is not None:
             ot.update(px, py, gyron.accel_x, gyron.accel_y)
-            os.system('cls' if os.name == 'nt' else 'clear')
-            print(gyron.accel_x)
-            fancyprint(ot.get_state()[0, 0])
-            fancyprint(ot.get_state()[1, 0])
-            fancyprint(ot.get_state()[2, 0])
-            fancyprint(ot.get_state()[3, 0])
-            fancyprint(ot.get_state()[4, 0])
-            fancyprint(ot.get_state()[5, 0])
-            # print(px)
+            # os.system('cls' if os.name == 'nt' else 'clear')
+            # fancyprint(ot.get_state()[0, 0])
+            # fancyprint(ot.get_state()[1, 0])
+            # fancyprint(ot.get_state()[2, 0])
+            # fancyprint(ot.get_state()[3, 0])
+            # fancyprint(ot.get_state()[4, 0])
+            # fancyprint(ot.get_state()[5, 0])
             time.sleep(0.01)
 
 try:
+    # start server client accept thread
+    socket_thread = Thread(target=client_accept)
+    socket_thread.start()
+
     # start IMU collection thread, fills buffer with IMU data and timestamps
     imu_thread = Thread(target=imu_collection)
     imu_thread.start()
