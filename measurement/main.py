@@ -1,67 +1,55 @@
-import navx
 import time
+from typing import List
 from decawave_1001_uart import Decawave1001Driver
+from navx import AHRS
 from threading import Thread, Lock
 from kalman import Kalman
 from networktables import NetworkTables
-import socket
-import os
+import numpy as np
 
-HOST = '0.0.0.0'
-PORT = 9000
+def list_append(list, n):
+    list.append(n)
+    return list
 
-active = True
-gyron = navx.AHRS("/dev/ttyACM1")
+imu = AHRS("/dev/ttyACM1")
 dwm = Decawave1001Driver("/dev/ttyACM0")
-ot = None
 time.sleep(0.1)
-gyron.zero_yaw()
-
-px, py, pz = 0, 0, 0
-
-def fancyprint(num):
-    if num >= 0:
-        print(" ", end="")
-    print(num)
-
-def imu_collection():
-    global ot, px, py, pz, sd
-    while active:
-        if ot is not None:
-            ot.update(px, py, gyron.accel_x, gyron.accel_y)
-            os.system('cls' if os.name == 'nt' else 'clear')
-            fancyprint(ot.get_state()[0, 0])
-            fancyprint(ot.get_state()[1, 0])
-            fancyprint(ot.get_state()[2, 0])
-            fancyprint(ot.get_state()[3, 0])
-            fancyprint(ot.get_state()[4, 0])
-            fancyprint(ot.get_state()[5, 0])
-            time.sleep(0.01)
 
 try:
-    # start IMU collection thread, fills buffer with IMU data and timestamps
-    imu_thread = Thread(target=imu_collection)
-    imu_thread.start()
+    
+    # seed initial IMU buffer for .1s
+    # seed UWB interpolation function with first 2 readings
+    imu.zero_yaw()
+    imu_buffer = []
+    dwm_there = list_append(dwm.get_pos().get_position().position(), time.monotonic())
+    for i in range(0, int(imu.get_sample_rate()/10)):
+        imu_buffer.append((imu.get_accel_x(), imu.get_accel_y(), imu.get_accel_z(), time.monotonic()))
+    dwm_here = list_append(dwm.get_pos().get_position().position(), time.monotonic())
+    print(len(imu_buffer))
 
-    # initialize filter with first position reading
-    init_pos = dwm.get_loc().get_tag_position().position()
-    px = init_pos[0]/1000
-    py = init_pos[1]/1000
-    py = init_pos[2]/1000
-    ot = Kalman(px, py)
-
-    # continuously update UWB position
+    # continuously loop
     while True:
-        try:
-            new_pos = dwm.get_loc().get_tag_position().position()
-            px = new_pos[0]/1000
-            py = new_pos[1]/1000
-            pz = new_pos[2]/1000
-        except Exception as e:
-            print(e)
-        time.sleep(0.1)
+        # if new IMU available:
+        if time.monotonic() - imu_buffer[-1][3] >= 0.01:
+            # append new value and timestamp to buffer
+            imu_buffer.append((imu.get_accel_x(), imu.get_accel_y(), imu.get_accel_z(), time.monotonic()))
+            # pop off old value and timestamp
+            imu_z = imu_buffer.pop(0)
+            
+            # create linearly interpolated DWM positions using dwm_there and dwm_here
+            dwm_time = imu_z[3] + (imu_z[3] - dwm_there[3])
+            dwm_z = [
+                np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[0], dwm_here[0]]),
+                np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[1], dwm_here[1]]),
+                np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[2], dwm_here[2]])
+            ]
+            # update state
+            # push estiamted state to networktables
+        if time.monotonic() - dwm_here[3] >= 0.1:
+            dwm_there = dwm_here
+            dwm_here = list_append(dwm.get_pos().get_position().position(), time.monotonic())
 except KeyboardInterrupt:
     print("closing sensors")
-    active = False
-    gyron.close()
+finally:
+    imu.close()
     dwm.close()
