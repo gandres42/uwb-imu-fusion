@@ -11,12 +11,14 @@ def list_append(list, n):
     list.append(n)
     return list
 
+NetworkTables.initialize()
+nt = NetworkTables.getTable("localization")
+
 imu = AHRS("/dev/ttyACM1")
 dwm = Decawave1001Driver("/dev/ttyACM0")
 time.sleep(0.1)
 
 try:
-    
     # seed initial IMU buffer for .1s
     # seed UWB interpolation function with first 2 readings
     imu.zero_yaw()
@@ -25,7 +27,6 @@ try:
     for i in range(0, int(imu.get_sample_rate()/10)):
         imu_buffer.append((imu.get_accel_x(), imu.get_accel_y(), imu.get_accel_z(), time.monotonic()))
     dwm_here = list_append(dwm.get_pos().get_position().position(), time.monotonic())
-    print(len(imu_buffer))
 
     # continuously loop
     while True:
@@ -44,7 +45,10 @@ try:
                 np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[2], dwm_here[2]])
             ]
             # update state
-            # push estiamted state to networktables
+            # push estimated state to networktables
+            nt.putNumber('time', time.monotonic())
+            nt.putNumber('x', (10 * time.monotonic()) % 100)
+            nt.putNumber('y', (10 * time.monotonic()) % 100)
         if time.monotonic() - dwm_here[3] >= 0.1:
             dwm_there = dwm_here
             dwm_here = list_append(dwm.get_pos().get_position().position(), time.monotonic())
