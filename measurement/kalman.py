@@ -52,16 +52,16 @@ class Kalman:
         ])
 
         self.R = np.array([
-            [.1997, 0, 0, 0],
-            [0, .1997, 0, 0],
-            [0, 0, .05, 0],
-            [0, 0, 0, .05]
+            [.0225, 0, 0, 0],
+            [0, .0225, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
         ])
 
-        self.P = np.identity(6) * 100
+        self.P = np.identity(6) * 1
 
-        self.jx_covar = 0.006
-        self.jy_covar = 0.006
+        self.jx_covar = 0.005
+        self.jy_covar = 0.005
 
         self.pax = 0
         self.pay = 0
