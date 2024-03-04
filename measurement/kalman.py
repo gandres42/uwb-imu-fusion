@@ -1,8 +1,11 @@
 import numpy as np
 import time
 import math
+import filterpy
+from filterpy.kalman import ExtendedKalmanFilter
+from filterpy.common import Q_discrete_white_noise
 
-class Kalman:
+class Dayton:
     def A(self, dt) -> np.ndarray:
         return np.array([
             [1, 0, dt, 0, dt**2/2, 0],
@@ -90,3 +93,34 @@ class Kalman:
 
     def get_state(self):
         return self.x
+
+class Extended():
+    def __init__(self, anchor_positions: list[tuple[float, float, float]]):
+        self.anchor_pos = anchor_positions
+        self.filter = ExtendedKalmanFilter(dim_x=6, dim_z=7)
+
+    def Hx(self, x):
+        px = x[0, 0]
+        py = x[1, 0]
+        pz = x[2, 0]
+        print((px, py, pz))
+        for anchor in self.anchor_pos:
+            dwmx = anchor[0]
+            dwmy = anchor[1]
+            dwmz = anchor[2]
+            dist = (dwmx - px)
+
+
+
+    def update(self, distances: list[float], ax: float, ay: float, az: float):
+        z = np.array([
+            [distances[0]],
+            [distances[1]],
+            [distances[2]],
+            [distances[3]],
+            [ax],
+            [ay],
+            [az]
+        ])
+
+        

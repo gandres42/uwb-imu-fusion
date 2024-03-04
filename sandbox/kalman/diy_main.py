@@ -13,11 +13,11 @@ class Kalman:
             [0, 1000000]
         ])
         self.A = np.matrix([
-            [1, .1],
+            [1, 1],
             [0, 1]
         ])
         self.H = np.matrix([
-            [0., 1.]
+            [0, 1]
         ])
         self.R = np.matrix([
             [.1997]
@@ -42,4 +42,4 @@ class Kalman:
 kalman = Kalman(0)
 for sample in m_samples:
     kalman.update(sample)
-    time.sleep(0.01)
+    # time.sleep(0.01)
