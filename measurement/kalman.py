@@ -94,33 +94,76 @@ class Dayton:
     def get_state(self):
         return self.x
 
-class Extended():
-    def __init__(self, anchor_positions: list[tuple[float, float, float]]):
-        self.anchor_pos = anchor_positions
-        self.filter = ExtendedKalmanFilter(dim_x=6, dim_z=7)
 
-    def Hx(self, x):
-        px = x[0, 0]
-        py = x[1, 0]
-        pz = x[2, 0]
-        print((px, py, pz))
-        for anchor in self.anchor_pos:
-            dwmx = anchor[0]
-            dwmy = anchor[1]
-            dwmz = anchor[2]
-            dist = (dwmx - px)
-
-
-
-    def update(self, distances: list[float], ax: float, ay: float, az: float):
-        z = np.array([
-            [distances[0]],
-            [distances[1]],
-            [distances[2]],
-            [distances[3]],
-            [ax],
-            [ay],
-            [az]
+class Overthruster:
+    def __init__(self, init_x, init_y):
+        self.x = np.array([
+            [init_x],
+            [init_y],
+            [0],
+            [0],
+            [0],
+            [0]
         ])
 
-        
+        self.P = np.identity(6)
+
+        self.R = np.array([
+            [.2, 0],
+            [0, .2]
+        ])
+
+        self.imu_H = np.array([
+            [0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 1]
+        ])
+
+        self.prev_imu = time.monotonic()
+        self.prev_dwm = time.monotonic()
+
+    def F(self, dt):
+        return np.array([
+            [1, 0, dt, 0, (dt**2)/2, 0],
+            [0, 1, 0, dt, 0, (dt**2)/2],
+            [0, 0, 1, 0, dt, 0],
+            [0, 0, 0, 1, 0, dt],
+            [0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 1]
+        ])
+    
+    def dwm_G(self, dt):
+        return np.array([
+            [(dt**3)/6, 0],
+            [0, (dt**3)/6],
+            [(dt**2)/2, 0],
+            [0, (dt**2)/2],
+            [dt, 0],
+            [0, dt]
+        ])
+    
+    def dmw_H(self, dt):
+        return np.array([
+            # TODO this is going to be a big array
+        ])
+    
+    def dwm_update(self, d1, d2, d3, d4):
+        pass    
+
+    def imu_update(self, ax, ay, az):
+        dt = time.monotonic() - self.prev_imu
+        self.prev_imu = time.monotonic()
+        Q = Q_discrete_white_noise(dim=6, dt=dt, var=0.1)
+        F = self.F(dt)
+        z = np.array([
+            [ax],
+            [ay]
+        ])
+
+        P_prior = F @ self.P @ F.T + Q
+        K = P_prior @ self.imu_H @ np.linalg.inv(self.imu_H @ P_prior @ self.imu_H + self.R)
+        x_prior = F @ self.x
+        self.x = x_prior + K @ (z - self.imu_H @ x_prior)
+        self.P = self.P = (np.identity(2) - K * self.imu_H) * P_prior
+
+    def get_x(self):
+        return self.x
