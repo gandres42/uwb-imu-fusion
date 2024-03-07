@@ -40,18 +40,25 @@ try:
             
             # create linearly interpolated DWM positions using dwm_there and dwm_here
             dwm_time = imu_z[3] + (imu_z[3] - dwm_there[3])
+            # dwm_z = [
+            #     np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[0], dwm_here[0]]),
+            #     np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[1], dwm_here[1]]),
+            #     np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[2], dwm_here[2]])
+            # ]
             dwm_z = [
-                np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[0], dwm_here[0]]),
-                np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[1], dwm_here[1]]),
-                np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[2], dwm_here[2]])
+                dwm_here[0],
+                dwm_here[1],
+                dwm_here[2]
             ]
             # update state
-            kalman.update(dwm_z[0], dwm_z[1], -imu_z[0], -imu_z[1])
+            kalman.update(dwm_z[0], dwm_z[1], imu_z[0], imu_z[1])
 
             # push estimated state to networktables
             nt.putNumber('time', time.monotonic())
-            nt.putNumber('dwm_x', float(np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[0], dwm_here[0]])))
-            nt.putNumber('dwm_y', float(np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[1], dwm_here[1]])))
+            # nt.putNumber('dwm_x', float(np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[0], dwm_here[0]])))
+            # nt.putNumber('dwm_y', float(np.interp(dwm_time, [dwm_there[3], dwm_here[3]], [dwm_there[1], dwm_here[1]])))
+            nt.putNumber('dwm_x', dwm_here[0])
+            nt.putNumber('dwm_y', dwm_here[1])
             nt.putNumber('fuse_x', kalman.get_state()[0, 0])
             nt.putNumber('fuse_y', kalman.get_state()[1, 0])
         if time.monotonic() - dwm_here[3] >= 0.1 and len(dwm.get_pos().get_position().position()) > 0:

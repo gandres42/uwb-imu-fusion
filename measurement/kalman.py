@@ -63,8 +63,8 @@ class Dayton:
 
         self.P = np.identity(6) * 1
 
-        self.jx_covar = 0.005
-        self.jy_covar = 0.005
+        self.jx_covar = 0.05
+        self.jy_covar = 0.05
 
         self.pax = 0
         self.pay = 0
@@ -94,8 +94,7 @@ class Dayton:
     def get_state(self):
         return self.x
 
-
-class Overthruster:
+class Nonlinear:
     def __init__(self, init_x, init_y):
         self.x = np.array([
             [init_x],
@@ -108,42 +107,9 @@ class Overthruster:
 
         self.P = np.identity(6) * 10
 
-        self.R = np.array([
-            [1, 0],
-            [0, 1]
-        ])
-
-        self.imu_H = np.array([
-            [0, 0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 0, 1]
-        ])
-
         self.prev_imu = time.monotonic()
         self.prev_dwm = time.monotonic()
-        self.jx_covar = 0.04
-        self.jy_covar = 0.04
 
-    def Q(self, dt):
-        return np.identity(6) * 1.4
-        # return np.array([
-        #     [(dt**6 * self.jx_covar)/36, 0, (dt**5 * self.jx_covar)/12, 0, (dt**4 * self.jx_covar)/6, 0],
-        #     [0, (math.pow(dt, 6) * self.jy_covar)/36, 0, (dt**5 * self.jy_covar)/12, 0, (dt**4 * self.jy_covar)/6],
-        #     [(dt**5 * self.jx_covar)/12, 0, (dt**4 * self.jx_covar)/4, 0, (dt**3 * self.jx_covar)/2, 0],
-        #     [0, (dt**5 * self.jy_covar)/12, 0, (dt**4 * self.jy_covar)/4, 0, (dt**3 * self.jy_covar)/2],
-        #     [(dt**4 * self.jx_covar)/6, 0, (dt**3 * self.jx_covar)/2, 0, (dt**2 * self.jx_covar)/1, 0],
-        #     [0, (dt**4 * self.jy_covar)/6, 0, (dt**3 * self.jy_covar)/2, 0, (dt**2 * self.jy_covar)/1]
-        # ])
-
-    def F(self, dt):
-        return np.array([
-            [1, 0, dt, 0, (dt**2)/2, 0],
-            [0, 1, 0, dt, 0, (dt**2)/2],
-            [0, 0, 1, 0, dt, 0],
-            [0, 0, 0, 1, 0, dt],
-            [0, 0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 0, 1]
-        ])
-    
     def dwm_G(self, dt):
         return np.array([
             [(dt**3)/6, 0],
@@ -154,29 +120,51 @@ class Overthruster:
             [0, dt]
         ])
     
-    def dmw_H(self, dt):
-        return np.array([
-            # TODO this is going to be a big array
-        ])
-    
     def dwm_update(self, d1, d2, d3, d4):
         pass    
 
     def imu_update(self, ax, ay, az):
         dt = time.monotonic() - self.prev_imu
         self.prev_imu = time.monotonic()
-        F = self.F(dt)
+
+        F = np.array([
+            [1, 0, dt, 0, (dt**2)/2, 0],
+            [0, 1, 0, dt, 0, (dt**2)/2],
+            [0, 0, 1, 0, dt, 0],
+            [0, 0, 0, 1, 0, dt],
+            [0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 1]
+        ])
+
         z = np.array([
             [ax],
             [ay]
         ])
 
+        Q = np.array([
+            [.1, 0, 0, 0, 0, 0],
+            [0, .1, 0, 0, 0, 0],
+            [0, 0, .05, 0, 0, 0],
+            [0, 0, 0, .05, 0, 0],
+            [0, 0, 0, 0, .01, 0],
+            [0, 0, 0, 0, 0, .01]
+        ])
 
-        P_prior = F @ self.P @ F.T + self.Q(dt)
-        K = P_prior @ self.imu_H.T @ np.linalg.inv(self.imu_H @ P_prior @ self.imu_H.T + self.R)
+        H = np.array([
+            [0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 1]
+        ])
+
+        R = np.array([
+            [1, 0],
+            [0, 1]
+        ])
+
+        P_prior = F @ self.P @ F.T + Q
+        K = P_prior @ H.T @ np.linalg.inv(H @ P_prior @ H.T + R)
         x_prior = F @ self.x
-        self.x = x_prior + K @ (z - self.imu_H @ x_prior)
-        self.P = self.P = (np.identity(6) - K @ self.imu_H) * P_prior
+        self.x = x_prior + K @ (z - H @ x_prior)
+        self.P = self.P = (np.identity(6) - K @ H) * P_prior
 
     def get_x(self):
         return self.x
