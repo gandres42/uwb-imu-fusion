@@ -3,7 +3,7 @@ from typing import List
 from decawave_1001_uart import Decawave1001Driver
 from navx import AHRS
 from threading import Thread, Lock
-from kalman import Kalman
+from kalman import Dayton
 from networktables import NetworkTables
 import numpy as np
 
@@ -27,7 +27,7 @@ try:
     for i in range(0, int(imu.get_sample_rate()/10)):
         imu_buffer.append((imu.get_accel_x(), imu.get_accel_y(), imu.get_accel_z(), time.monotonic()))
     dwm_here = list_append(dwm.get_pos().get_position().position(), time.monotonic()) / 1000
-    kalman = Kalman(dwm_here[0], dwm_here[1])
+    kalman = Dayton(dwm_here[0], dwm_here[1])
 
     # continuously loop
     while True:

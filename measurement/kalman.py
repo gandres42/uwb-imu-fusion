@@ -106,11 +106,11 @@ class Overthruster:
             [0]
         ])
 
-        self.P = np.identity(6)
+        self.P = np.identity(6) * 10
 
         self.R = np.array([
-            [.2, 0],
-            [0, .2]
+            [1, 0],
+            [0, 1]
         ])
 
         self.imu_H = np.array([
@@ -120,6 +120,19 @@ class Overthruster:
 
         self.prev_imu = time.monotonic()
         self.prev_dwm = time.monotonic()
+        self.jx_covar = 0.04
+        self.jy_covar = 0.04
+
+    def Q(self, dt):
+        return np.identity(6) * 1.4
+        # return np.array([
+        #     [(dt**6 * self.jx_covar)/36, 0, (dt**5 * self.jx_covar)/12, 0, (dt**4 * self.jx_covar)/6, 0],
+        #     [0, (math.pow(dt, 6) * self.jy_covar)/36, 0, (dt**5 * self.jy_covar)/12, 0, (dt**4 * self.jy_covar)/6],
+        #     [(dt**5 * self.jx_covar)/12, 0, (dt**4 * self.jx_covar)/4, 0, (dt**3 * self.jx_covar)/2, 0],
+        #     [0, (dt**5 * self.jy_covar)/12, 0, (dt**4 * self.jy_covar)/4, 0, (dt**3 * self.jy_covar)/2],
+        #     [(dt**4 * self.jx_covar)/6, 0, (dt**3 * self.jx_covar)/2, 0, (dt**2 * self.jx_covar)/1, 0],
+        #     [0, (dt**4 * self.jy_covar)/6, 0, (dt**3 * self.jy_covar)/2, 0, (dt**2 * self.jy_covar)/1]
+        # ])
 
     def F(self, dt):
         return np.array([
@@ -152,18 +165,18 @@ class Overthruster:
     def imu_update(self, ax, ay, az):
         dt = time.monotonic() - self.prev_imu
         self.prev_imu = time.monotonic()
-        Q = Q_discrete_white_noise(dim=6, dt=dt, var=0.1)
         F = self.F(dt)
         z = np.array([
             [ax],
             [ay]
         ])
 
-        P_prior = F @ self.P @ F.T + Q
-        K = P_prior @ self.imu_H @ np.linalg.inv(self.imu_H @ P_prior @ self.imu_H + self.R)
+
+        P_prior = F @ self.P @ F.T + self.Q(dt)
+        K = P_prior @ self.imu_H.T @ np.linalg.inv(self.imu_H @ P_prior @ self.imu_H.T + self.R)
         x_prior = F @ self.x
         self.x = x_prior + K @ (z - self.imu_H @ x_prior)
-        self.P = self.P = (np.identity(2) - K * self.imu_H) * P_prior
+        self.P = self.P = (np.identity(6) - K @ self.imu_H) * P_prior
 
     def get_x(self):
         return self.x
