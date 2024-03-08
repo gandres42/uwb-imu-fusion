@@ -31,12 +31,8 @@ while True:
     #     nt.putNumber('fuse_y', round(filter.get_x()[1, 0], 2))
     if time.monotonic() - prev_dwm > 0.1:
         anchors = dwm.get_loc().get_anchor_distances_and_positions()
-        if len(anchors) == 4:
-            filter.dwm_update(anchors)
+        filter.dwm_update(anchors)
         prev_dwm = time.monotonic()
         nt.putNumber('fuse_x', round(filter.get_x()[0, 0], 2))
         nt.putNumber('fuse_y', round(filter.get_x()[1, 0], 2))
-        # print(round(filter.get_x()[0, 0], 3), end=", ")
-        # print(round(filter.get_x()[1, 0], 3), end=", ")
-        # print(round(filter.get_x()[2, 0], 3))
     
