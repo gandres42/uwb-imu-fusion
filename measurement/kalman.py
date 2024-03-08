@@ -102,36 +102,35 @@ class Nonlinear:
             self.y = y
             self.z = z
 
-    def __init__(self, init_x: float, init_y: float):
+    def __init__(self, init_x: float, init_y: float, init_z: float):
         self.x = np.array([
             [init_x],
             [init_y],
+            [init_z],
+            [0],
+            [0],
             [0],
             [0],
             [0],
             [0]
         ])
 
-        self.P = np.identity(6) * 10
-
+        self.P = np.identity(9) * 10
         self.prev_imu = time.monotonic()
         self.prev_dwm = time.monotonic()
-
-        self.anchors = {}
-
-    # def add_anchor()
         
     
     def dwm_update(self, anchors: list[DwmDistanceAndPosition]):
         def z_factory(x, anchors: list[DwmDistanceAndPosition]):
             px = x[0, 0]
             py = x[1, 0]
+            px = x[2, 0]
             z = []
             for anchor in anchors:
                 ax = anchor.position().position()[0] * .001
                 ay = anchor.position().position()[1] * .001
-                z.append([((x[0, 0] - ax)**2 + (x[1, 0] - ay)**2)**.5])
-            print(np.array(z))
+                az = anchor.position().position()[2] * .001
+                z.append([((x[0, 0] - ax)**2 + (x[1, 0] - ay)**2 + (x[2, 0] - az)**2)**.5])
             return np.array(z)
         
         if len(anchors) == 0:
@@ -141,41 +140,57 @@ class Nonlinear:
         self.prev_dwm = time.monotonic()
 
         F = np.array([
-            [1, 0, dt, 0, (dt**2)/2, 0],
-            [0, 1, 0, dt, 0, (dt**2)/2],
-            [0, 0, 1, 0, dt, 0],
-            [0, 0, 0, 1, 0, dt],
-            [0, 0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 0, 1]
+            [1, 0, 0, dt, 0, 0, (dt**2)/2, 0, 0],
+            [0, 1, 0, 0, dt, 0, 0, (dt**2)/2, 0],
+            [0, 0, 1, 0, 0, dt, 0, 0, (dt**2)/2],
+            [0, 0, 0, 1, 0, 0, dt, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, dt, 0],
+            [0, 0, 0, 0, 0, 1, 0, 0, dt],
+            [0, 0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 1]
         ])
 
         G = np.array([
-            [(dt**3)/6, 0],
-            [0, (dt**3)/6],
-            [(dt**2)/2, 0],
-            [0, (dt**2)/2],
-            [dt, 0],
-            [0, dt]
+            [(dt**3)/6, 0, 0],
+            [0, (dt**3)/6, 0],
+            [0, 0, (dt**3)/6],
+            [(dt**2)/2, 0, 0],
+            [0, (dt**2)/2, 0],
+            [0, 0, (dt**2)/2],
+            [dt, 0, 0],
+            [0, dt, 0],
+            [0, 0, dt]
         ])
 
-        Q = np.identity(2) * 10
-        R = np.identity(len(anchors)) * 1.5
+        Q = np.array([
+            [10, 0, 0],
+            [0, 10, 0],
+            [0, 0, 10],
+        ])
+
+        R = np.identity(len(anchors)) * .19
 
         z = []
         for anchor in anchors:
             z.append([anchor.distance() * .001])
         z = np.array(z)
 
-        H = []
         x_k = self.x[0, 0]
         y_k = self.x[1, 0]
+        z_k = self.x[2, 0]
+        H = []
         for anchor in anchors:
             ax = anchor.position().position()[0] * .001
             ay = anchor.position().position()[1] * .001
+            az = anchor.position().position()[2] * .001
 
             H.append([
-                (((x_k - ax)**2 + (y_k - ay)**2)**.5) and (x_k - ax)/(((x_k - ax)**2 + (y_k - ay)**2)**.5) or 0,
-                (((x_k - ax)**2 + (y_k - ay)**2)**.5) and (y_k - ay)/(((x_k - ax)**2 + (y_k - ay)**2)**.5) or 0,
+                (((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) and (x_k - ax)/(((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) or 0,
+                (((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) and (y_k - ay)/(((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) or 0,
+                (((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) and (z_k - az)/(((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) or 0,
+                0,
+                0,
                 0,
                 0,
                 0,
@@ -186,11 +201,11 @@ class Nonlinear:
         x_prior = F @ self.x
         P_prior = F @ self.P @ F.T + (G @ Q @ G.T)
         K = P_prior @ H.T @ np.linalg.inv(H @ P_prior @ H.T + R)
-        print()
-        print(z)
+        # print()
+        # print(z)
         self.x = x_prior + K @ (z - z_factory(self.x, anchors))
         self.prev_z = z
-        self.P = (np.identity(6) - K @ H) @ P_prior
+        self.P = (np.identity(9) - K @ H) @ P_prior
 
     def imu_update(self, ax, ay, az):
         dt = time.monotonic() - self.prev_imu

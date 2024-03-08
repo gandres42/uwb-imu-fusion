@@ -22,7 +22,7 @@ prev_dwm = time.monotonic()
 time.sleep(0.1)
 imu.zero_yaw()
 init_pos = dwm.get_pos().get_position().position()
-filter = Nonlinear(init_pos[0] * .001, init_pos[1] * .001)
+filter = Nonlinear(init_pos[0] * .001, init_pos[1] * .001, init_pos[2] * .001)
 while True:
     # if time.monotonic() - prev_imu >= 0.01:
     #     filter.imu_update(imu.get_accel_x(), imu.get_accel_y(), imu.get_accel_z())
@@ -33,4 +33,5 @@ while True:
             filter.dwm_update(anchors)
         prev_dwm = time.monotonic()
         print(round(filter.get_x()[0, 0], 3), end=", ")
-        print(round(filter.get_x()[1, 0], 3))
+        print(round(filter.get_x()[1, 0], 3), end=", ")
+        print(round(filter.get_x()[2, 0], 3))
