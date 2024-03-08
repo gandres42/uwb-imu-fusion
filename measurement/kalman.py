@@ -159,8 +159,8 @@ class Nonlinear:
             ax = anchor.position().position()[0] * .001
             ay = anchor.position().position()[1] * .001
             Hx.append([
-                (x_k - ax)/(((x_k - ax)**2 + (y_k - ay)**2)**.5),
-                (x_k - ay)/(((x_k - ax)**2 + (y_k - ay)**2)**.5),
+                (((x_k - ax)**2 + (y_k - ay)**2)**.5) and (x_k - ax)/(((x_k - ax)**2 + (y_k - ay)**2)**.5) or 0,
+                (((x_k - ax)**2 + (y_k - ay)**2)**.5) and (x_k - ay)/(((x_k - ax)**2 + (y_k - ay)**2)**.5) or 0,
                 0,
                 0,
                 0,
