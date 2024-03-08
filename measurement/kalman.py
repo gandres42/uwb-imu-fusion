@@ -169,7 +169,7 @@ class Nonlinear:
             [0, 0, 10],
         ])
 
-        R = np.identity(len(anchors)) * .19
+        R = np.identity(len(anchors)) * 1.9
 
         z = []
         for anchor in anchors:
@@ -201,8 +201,6 @@ class Nonlinear:
         x_prior = F @ self.x
         P_prior = F @ self.P @ F.T + (G @ Q @ G.T)
         K = P_prior @ H.T @ np.linalg.inv(H @ P_prior @ H.T + R)
-        # print()
-        # print(z)
         self.x = x_prior + K @ (z - z_factory(self.x, anchors))
         self.prev_z = z
         self.P = (np.identity(9) - K @ H) @ P_prior
