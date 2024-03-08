@@ -4,6 +4,7 @@ import math
 import filterpy
 from filterpy.kalman import ExtendedKalmanFilter
 from filterpy.common import Q_discrete_white_noise
+from decawave_1001_uart import DwmDistanceAndPosition
 
 class Dayton:
     def A(self, dt) -> np.ndarray:
@@ -95,7 +96,13 @@ class Dayton:
         return self.x
 
 class Nonlinear:
-    def __init__(self, init_x, init_y):
+    class Anchor:
+        def __init__(self, x, y, z):
+            self.x = x
+            self.y = y
+            self.z = z
+
+    def __init__(self, init_x: float, init_y: float):
         self.x = np.array([
             [init_x],
             [init_y],
@@ -110,8 +117,28 @@ class Nonlinear:
         self.prev_imu = time.monotonic()
         self.prev_dwm = time.monotonic()
 
-    def dwm_G(self, dt):
-        return np.array([
+        self.anchors = {}
+
+    # def add_anchor()
+        
+    
+    def dwm_update(self, anchors: list[DwmDistanceAndPosition]):
+        if len(anchors) == 0:
+            return
+        
+        dt = time.monotonic() - self.prev_dwm
+        self.prev_dwm = time.monotonic()
+
+        F = np.array([
+            [1, 0, dt, 0, (dt**2)/2, 0],
+            [0, 1, 0, dt, 0, (dt**2)/2],
+            [0, 0, 1, 0, dt, 0],
+            [0, 0, 0, 1, 0, dt],
+            [0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 1]
+        ])
+
+        G = np.array([
             [(dt**3)/6, 0],
             [0, (dt**3)/6],
             [(dt**2)/2, 0],
@@ -119,9 +146,26 @@ class Nonlinear:
             [dt, 0],
             [0, dt]
         ])
-    
-    def dwm_update(self, d1, d2, d3, d4):
-        pass    
+
+        z = []
+        for anchor in anchors:
+            z.append([anchor.distance() * .001])
+        z = np.array(z)
+
+        Hx = []
+        x_k = self.x[0, 0]
+        y_k = self.x[1, 0]
+        for anchor in anchors:
+            ax = anchor.position().position()[0] * .001
+            ay = anchor.position().position()[1] * .001
+            Hx.append([
+                (x_k - ax)/(((x_k - ax)**2 + (y_k - ay)**2)**.5)
+            ])
+
+
+
+        
+
 
     def imu_update(self, ax, ay, az):
         dt = time.monotonic() - self.prev_imu
