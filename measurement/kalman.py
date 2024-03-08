@@ -131,6 +131,7 @@ class Nonlinear:
                 ax = anchor.position().position()[0] * .001
                 ay = anchor.position().position()[1] * .001
                 z.append([((x[0, 0] - ax)**2 + (x[1, 0] - ay)**2)**.5])
+            print(np.array(z))
             return np.array(z)
         
         if len(anchors) == 0:
@@ -157,8 +158,8 @@ class Nonlinear:
             [0, dt]
         ])
 
-        Q = np.identity(2) * 5
-        R = np.identity(len(anchors)) * .19
+        Q = np.identity(2) * 10
+        R = np.identity(len(anchors)) * 1.5
 
         z = []
         for anchor in anchors:
@@ -174,7 +175,7 @@ class Nonlinear:
 
             H.append([
                 (((x_k - ax)**2 + (y_k - ay)**2)**.5) and (x_k - ax)/(((x_k - ax)**2 + (y_k - ay)**2)**.5) or 0,
-                (((x_k - ax)**2 + (y_k - ay)**2)**.5) and (x_k - ay)/(((x_k - ax)**2 + (y_k - ay)**2)**.5) or 0,
+                (((x_k - ax)**2 + (y_k - ay)**2)**.5) and (y_k - ay)/(((x_k - ax)**2 + (y_k - ay)**2)**.5) or 0,
                 0,
                 0,
                 0,
@@ -185,6 +186,8 @@ class Nonlinear:
         x_prior = F @ self.x
         P_prior = F @ self.P @ F.T + (G @ Q @ G.T)
         K = P_prior @ H.T @ np.linalg.inv(H @ P_prior @ H.T + R)
+        print()
+        print(z)
         self.x = x_prior + K @ (z - z_factory(self.x, anchors))
         self.prev_z = z
         self.P = (np.identity(6) - K @ H) @ P_prior

@@ -24,7 +24,6 @@ imu.zero_yaw()
 init_pos = dwm.get_pos().get_position().position()
 filter = Nonlinear(init_pos[0] * .001, init_pos[1] * .001)
 while True:
-    # if new IMU available:
     # if time.monotonic() - prev_imu >= 0.01:
     #     filter.imu_update(imu.get_accel_x(), imu.get_accel_y(), imu.get_accel_z())
     #     prev_imu = time.monotonic()
