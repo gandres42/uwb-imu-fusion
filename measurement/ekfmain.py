@@ -24,9 +24,9 @@ imu.zero_yaw()
 init_pos = dwm.get_pos().get_position().position()
 filter = Nonlinear(init_pos[0] * .001, init_pos[1] * .001, init_pos[2] * .001)
 while True:
-    # if time.monotonic() - prev_imu >= 0.01:
-    #     filter.imu_update(imu.get_accel_x(), imu.get_accel_y(), imu.get_accel_z())
-    #     prev_imu = time.monotonic()
+    if time.monotonic() - prev_imu >= 0.01:
+        filter.imu_update(imu.get_accel_x(), imu.get_accel_y(), imu.get_accel_z())
+        prev_imu = time.monotonic()
     if time.monotonic() - prev_dwm > 0.1:
         anchors = dwm.get_loc().get_anchor_distances_and_positions()
         if len(anchors) == 4:
