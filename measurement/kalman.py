@@ -164,10 +164,11 @@ class Nonlinear:
         ])
 
         Q = np.array([
-            [10, 0, 0],
-            [0, 10, 0],
-            [0, 0, 10],
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1],
         ])
+        # Q = Q_discrete_white_noise(dim=3, dt=dt, var=5)
 
         R = np.identity(len(anchors)) * 1.9
 
@@ -189,7 +190,12 @@ class Nonlinear:
                 (((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) and (x_k - ax)/(((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) or 0,
                 (((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) and (y_k - ay)/(((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) or 0,
                 (((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) and (z_k - az)/(((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) or 0,
-                0, 0, 0, 0, 0, 0
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
             ])
         H = np.array(H)
         

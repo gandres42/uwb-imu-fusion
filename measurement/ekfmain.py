@@ -31,8 +31,11 @@ while True:
     #     nt.putNumber('fuse_y', round(filter.get_x()[1, 0], 2))
     if time.monotonic() - prev_dwm > 0.1:
         anchors = dwm.get_loc().get_anchor_distances_and_positions()
+        position = dwm.get_pos().get_position().position()
         filter.dwm_update(anchors)
         prev_dwm = time.monotonic()
         nt.putNumber('fuse_x', round(filter.get_x()[0, 0], 2))
         nt.putNumber('fuse_y', round(filter.get_x()[1, 0], 2))
+        nt.putNumber('dwm_x', position[0] * .001)
+        nt.putNumber('dwm_y', position[1] * .001)
     
