@@ -120,7 +120,7 @@ class Nonlinear:
         self.prev_dwm = time.monotonic()
         
     
-    def dwm_update(self, anchors: list[DwmDistanceAndPosition]):
+    def dwm_update(self, anchors: list[DwmDistanceAndPosition], ax, ay, az):
         def z_factory(x, anchors: list[DwmDistanceAndPosition]):
             px = x[0, 0]
             py = x[1, 0]
@@ -164,9 +164,9 @@ class Nonlinear:
         ])
 
         Q = np.array([
-            [1, 0, 0],
-            [0, 1, 0],
-            [0, 0, 1],
+            [abs(ax), 0, 0],
+            [0, abs(ay), 0],
+            [0, 0, abs(az)],
         ])
         # Q = Q_discrete_white_noise(dim=3, dt=dt, var=5)
 
