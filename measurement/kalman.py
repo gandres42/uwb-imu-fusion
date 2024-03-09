@@ -125,12 +125,18 @@ class Nonlinear:
             px = x[0, 0]
             py = x[1, 0]
             px = x[2, 0]
+            ax = x[5, 0]
+            ay = x[6, 0]
+            az = x[7, 0]
             z = []
             for anchor in anchors:
                 ax = anchor.position().position()[0] * .001
                 ay = anchor.position().position()[1] * .001
                 az = anchor.position().position()[2] * .001
                 z.append([((x[0, 0] - ax)**2 + (x[1, 0] - ay)**2 + (x[2, 0] - az)**2)**.5])
+            z.append([ax])
+            z.append([ay])
+            z.append([az])
             return np.array(z)
         
         if len(anchors) == 0:
@@ -168,13 +174,20 @@ class Nonlinear:
             [0, abs(ay), 0],
             [0, 0, abs(az)],
         ])
-        # Q = Q_discrete_white_noise(dim=3, dt=dt, var=5)
+        # Q = Q_discrete_white_noise(dim=3, dt=dt, var=1)
 
-        R = np.identity(len(anchors)) * 1.9
+        R = np.identity(len(anchors) + 3) * .19
+        R[-1, -1] = 5
+        R[-2, -2] = 5
+        R[-3, -3] = 5
+        print(R)
 
         z = []
         for anchor in anchors:
             z.append([anchor.distance() * .001])
+        z.append([ax])
+        z.append([ay])
+        z.append([az])
         z = np.array(z)
 
         x_k = self.x[0, 0]
@@ -197,7 +210,12 @@ class Nonlinear:
                 0,
                 0
             ])
+        H.append([0, 0, 0, 0, 0, 0, 1, 0, 0])
+        H.append([0, 0, 0, 0, 0, 0, 0, 1, 0])
+        H.append([0, 0, 0, 0, 0, 0, 0, 0, 1])
         H = np.array(H)
+        print('------------------------------')
+        print(H)
         
         x_prior = F @ self.x
         P_prior = F @ self.P @ F.T + (G @ Q @ G.T)
@@ -205,58 +223,6 @@ class Nonlinear:
         self.x = x_prior + K @ (z - z_factory(self.x, anchors))
         self.prev_z = z
         self.P = (np.identity(9) - K @ H) @ P_prior
-
-    def imu_update(self, ax, ay, az):
-        dt = time.monotonic() - self.prev_imu
-        self.prev_imu = time.monotonic()
-
-        F = np.array([
-            [1, 0, 0, dt, 0, 0, (dt**2)/2, 0, 0],
-            [0, 1, 0, 0, dt, 0, 0, (dt**2)/2, 0],
-            [0, 0, 1, 0, 0, dt, 0, 0, (dt**2)/2],
-            [0, 0, 0, 1, 0, 0, dt, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, dt, 0],
-            [0, 0, 0, 0, 0, 1, 0, 0, dt],
-            [0, 0, 0, 0, 0, 0, 1, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 1]
-        ])
-
-        z = np.array([
-            [ax],
-            [ay],
-            [az]
-        ])
-
-        Q = np.array([
-            [.1, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, .1, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, .1, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, .05, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, .05, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, .05, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, .01, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, .01, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, .01]
-        ])
-
-        H = np.array([
-            [0, 0, 0, 0, 0, 0, 1, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 1]
-        ])
-
-        R = np.array([
-            [1, 0, 0],
-            [0, 1, 0],
-            [0, 0, 1],
-        ])
-
-        P_prior = F @ self.P @ F.T + Q
-        K = P_prior @ H.T @ np.linalg.inv(H @ P_prior @ H.T + R)
-        x_prior = F @ self.x
-        self.x = x_prior + K @ (z - H @ x_prior)
-        self.P = self.P = (np.identity(9) - K @ H) * P_prior
 
     def get_x(self):
         return self.x

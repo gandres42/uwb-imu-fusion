@@ -11,6 +11,7 @@ def list_append(list, n):
     list.append(n)
     return np.array(list)
 
+np.set_printoptions(edgeitems=30, linewidth=100000, formatter=dict(float=lambda x: "%.2g" % x)) # type: ignore
 
 NetworkTables.initialize()
 nt = NetworkTables.getTable("localization")
@@ -25,7 +26,7 @@ init_pos = dwm.get_pos().get_position().position()
 filter = Nonlinear(init_pos[0] * .001, init_pos[1] * .001, init_pos[2] * .001)
 anchors = []
 while True:
-    if time.monotonic() - prev_dwm > 0.2:
+    if time.monotonic() - prev_dwm > 0.1:
         anchors = dwm.get_loc().get_anchor_distances_and_positions()
         position = dwm.get_pos().get_position().position()
         nt.putNumber('dwm_x', position[0] * .001)
