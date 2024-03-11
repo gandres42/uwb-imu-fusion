@@ -115,7 +115,7 @@ class Nonlinear:
             [0]
         ])
 
-        self.P = np.identity(9) * 10
+        self.P = np.identity(9) * 1
         self.prev_imu = time.monotonic()
         self.prev_dwm = time.monotonic()
         
@@ -138,7 +138,7 @@ class Nonlinear:
             z.append([ay])
             z.append([az])
             return np.array(z)
-        
+
         if len(anchors) == 0:
             return
         
@@ -169,18 +169,18 @@ class Nonlinear:
             [0, 0, dt]
         ])
 
-        Q = np.array([
-            [abs(ax), 0, 0],
-            [0, abs(ay), 0],
-            [0, 0, abs(az)],
-        ])
+        # Q = np.array([
+        #     [abs(ax), 0, 0],
+        #     [0, abs(ay), 0],
+        #     [0, 0, abs(az)],
+        # ])
         # Q = Q_discrete_white_noise(dim=3, dt=dt, var=1)
+        Q = np.identity(3) * 5
 
         R = np.identity(len(anchors) + 3) * .19
         R[-1, -1] = 5
         R[-2, -2] = 5
         R[-3, -3] = 5
-        print(R)
 
         z = []
         for anchor in anchors:
@@ -210,12 +210,10 @@ class Nonlinear:
                 0,
                 0
             ])
-        H.append([0, 0, 0, 0, 0, 0, 1, 0, 0])
-        H.append([0, 0, 0, 0, 0, 0, 0, 1, 0])
-        H.append([0, 0, 0, 0, 0, 0, 0, 0, 1])
+        H.append([0, 0, 0, 0, 0, 0, 0, 0, 0])
+        H.append([0, 0, 0, 0, 0, 0, 0, 0, 0])
+        H.append([0, 0, 0, 0, 0, 0, 0, 0, 0])
         H = np.array(H)
-        print('------------------------------')
-        print(H)
         
         x_prior = F @ self.x
         P_prior = F @ self.P @ F.T + (G @ Q @ G.T)
