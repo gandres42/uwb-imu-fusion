@@ -4,7 +4,7 @@ import math
 import filterpy
 from filterpy.kalman import ExtendedKalmanFilter
 from filterpy.common import Q_discrete_white_noise
-from decawave_1001_uart import DwmDistanceAndPosition
+from dwm1001 import dwm1001, Anchor
 
 class Dayton:
     def A(self, dt) -> np.ndarray:
@@ -120,23 +120,20 @@ class Nonlinear:
         self.prev_dwm = time.monotonic()
         
     
-    def dwm_update(self, anchors: list[DwmDistanceAndPosition], ax, ay, az):
-        def z_factory(x, anchors: list[DwmDistanceAndPosition]):
+    def dwm_update(self, anchors: list[Anchor], ax, ay, az):
+        def z_factory(x, anchors: list[Anchor]):
             px = x[0, 0]
             py = x[1, 0]
             px = x[2, 0]
-            ax = x[5, 0]
-            ay = x[6, 0]
-            az = x[7, 0]
+            eax = x[-3, 0]
+            eay = x[-2, 0]
+            eaz = x[-1, 0]
             z = []
             for anchor in anchors:
-                ax = anchor.position().position()[0] * .001
-                ay = anchor.position().position()[1] * .001
-                az = anchor.position().position()[2] * .001
-                z.append([((x[0, 0] - ax)**2 + (x[1, 0] - ay)**2 + (x[2, 0] - az)**2)**.5])
-            z.append([ax])
-            z.append([ay])
-            z.append([az])
+                z.append([((x[0, 0] - anchor.px)**2 + (x[1, 0] - anchor.py)**2 + (x[2, 0] - anchor.pz)**2)**.5])
+            z.append([eax])
+            z.append([eay])
+            z.append([eaz])
             return np.array(z)
 
         if len(anchors) == 0:
@@ -174,35 +171,33 @@ class Nonlinear:
         #     [0, abs(ay), 0],
         #     [0, 0, abs(az)],
         # ])
-        # Q = Q_discrete_white_noise(dim=3, dt=dt, var=1)
-        Q = np.identity(3) * 5
+        # Q = Q_discrete_white_noise(dim=3, dt=dt, var=100)
+        Q = np.identity(3) * 1
 
-        R = np.identity(len(anchors) + 3) * .19
-        R[-1, -1] = 5
-        R[-2, -2] = 5
-        R[-3, -3] = 5
+        R = np.identity(len(anchors) + 3) * .25
+        R[-1, -1] = 1
+        R[-2, -2] = 1
+        R[-3, -3] = 1
 
         z = []
         for anchor in anchors:
-            z.append([anchor.distance() * .001])
+            z.append([anchor.dst])
         z.append([ax])
         z.append([ay])
         z.append([az])
         z = np.array(z)
+        print()
+        print(z)
 
         x_k = self.x[0, 0]
         y_k = self.x[1, 0]
         z_k = self.x[2, 0]
         H = []
         for anchor in anchors:
-            ax = anchor.position().position()[0] * .001
-            ay = anchor.position().position()[1] * .001
-            az = anchor.position().position()[2] * .001
-
             H.append([
-                (((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) and (x_k - ax)/(((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) or 0,
-                (((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) and (y_k - ay)/(((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) or 0,
-                (((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) and (z_k - az)/(((x_k - ax)**2 + (y_k - ay)**2 + (z_k - az)**2)**.5) or 0,
+                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (x_k - anchor.px)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 0,
+                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (y_k - anchor.py)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 0,
+                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (z_k - anchor.pz)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 0,
                 0,
                 0,
                 0,
