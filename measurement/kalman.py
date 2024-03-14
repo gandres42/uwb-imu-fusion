@@ -115,16 +115,13 @@ class Nonlinear:
             [0]
         ])
 
-        self.P = np.identity(9) * 1
+        self.P = np.identity(9) * 5
         self.prev_imu = time.monotonic()
         self.prev_dwm = time.monotonic()
         
     
     def dwm_update(self, anchors: list[Anchor], ax, ay, az):
         def z_factory(x, anchors: list[Anchor]):
-            px = x[0, 0]
-            py = x[1, 0]
-            px = x[2, 0]
             eax = x[-3, 0]
             eay = x[-2, 0]
             eaz = x[-1, 0]
@@ -171,13 +168,20 @@ class Nonlinear:
         #     [0, abs(ay), 0],
         #     [0, 0, abs(az)],
         # ])
-        # Q = Q_discrete_white_noise(dim=3, dt=dt, var=100)
-        Q = np.identity(3) * 1
+        # Q = Q_discrete_white_noise(dim=3, dt=dt, var=10)
+        # Q = np.array([
+        #     [1, 0, 0],
+        #     [0, 1, 0],
+        #     [0, 0, 1]
+        # ])
+        Q = np.identity(3) * dt * 100
+        print(Q)
 
-        R = np.identity(len(anchors) + 3) * .25
-        R[-1, -1] = 1
-        R[-2, -2] = 1
-        R[-3, -3] = 1
+
+        R = np.identity(len(anchors) + 3) * .0225
+        R[-1, -1] = .2
+        R[-2, -2] = .2
+        R[-3, -3] = .2
 
         z = []
         for anchor in anchors:
@@ -186,8 +190,9 @@ class Nonlinear:
         z.append([ay])
         z.append([az])
         z = np.array(z)
-        print()
-        print(z)
+
+        # print('-----')
+        # print(z)
 
         x_k = self.x[0, 0]
         y_k = self.x[1, 0]
@@ -205,9 +210,9 @@ class Nonlinear:
                 0,
                 0
             ])
-        H.append([0, 0, 0, 0, 0, 0, 0, 0, 0])
-        H.append([0, 0, 0, 0, 0, 0, 0, 0, 0])
-        H.append([0, 0, 0, 0, 0, 0, 0, 0, 0])
+        H.append([0, 0, 0, 0, 0, 0, 1, 0, 0])
+        H.append([0, 0, 0, 0, 0, 0, 0, 1, 0])
+        H.append([0, 0, 0, 0, 0, 0, 0, 0, 1])
         H = np.array(H)
         
         x_prior = F @ self.x
