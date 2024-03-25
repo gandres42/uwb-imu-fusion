@@ -92,7 +92,7 @@ class Dayton:
         self.x = x_priori + K @ (z - self.H @ x_priori)
         self.P = (np.identity(6) - K @ self.H) @ P_priori
 
-    def get_state(self):
+    def get_x(self):
         return self.x
 
 class Nonlinear:
@@ -136,6 +136,10 @@ class Nonlinear:
         if len(anchors) == 0:
             return
         
+        ax = ax * 9.80665
+        ay = ay * 9.80665
+        az = az * 9.80665
+        
         dt = time.monotonic() - self.prev_dwm
         self.prev_dwm = time.monotonic()
 
@@ -163,25 +167,13 @@ class Nonlinear:
             [0, 0, dt]
         ])
 
-        # Q = np.array([
-        #     [abs(ax), 0, 0],
-        #     [0, abs(ay), 0],
-        #     [0, 0, abs(az)],
-        # ])
-        # Q = Q_discrete_white_noise(dim=3, dt=dt, var=10)
-        # Q = np.array([
-        #     [1, 0, 0],
-        #     [0, 1, 0],
-        #     [0, 0, 1]
-        # ])
-        Q = np.identity(3) * dt * 100
-        print(Q)
+        Q = np.identity(3)
 
 
-        R = np.identity(len(anchors) + 3) * .0225
-        R[-1, -1] = .2
-        R[-2, -2] = .2
-        R[-3, -3] = .2
+        R = np.identity(len(anchors) + 3) * .19
+        R[-1, -1] = 1
+        R[-2, -2] = 1
+        R[-3, -3] = 1
 
         z = []
         for anchor in anchors:
@@ -190,9 +182,6 @@ class Nonlinear:
         z.append([ay])
         z.append([az])
         z = np.array(z)
-
-        # print('-----')
-        # print(z)
 
         x_k = self.x[0, 0]
         y_k = self.x[1, 0]
