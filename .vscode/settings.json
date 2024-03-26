@@ -1,4 +1,7 @@
 {
     "python.analysis.typeCheckingMode": "off",
-    "python.analysis.autoImportCompletions": true
+    "python.analysis.autoImportCompletions": true,
+    "files.associations": {
+        "iomanip": "cpp"
+    }
 }

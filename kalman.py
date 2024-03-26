@@ -115,7 +115,7 @@ class Nonlinear:
             [0]
         ])
 
-        self.P = np.identity(9) * 5
+        self.P = np.identity(9)
         self.prev_imu = time.monotonic()
         self.prev_dwm = time.monotonic()
         
@@ -166,14 +166,12 @@ class Nonlinear:
             [0, dt, 0],
             [0, 0, dt]
         ])
-
-        Q = np.identity(3)
-
+        Q = np.identity(3) * .1
 
         R = np.identity(len(anchors) + 3) * .19
-        R[-1, -1] = 1
-        R[-2, -2] = 1
-        R[-3, -3] = 1
+        R[-1, -1] = .2
+        R[-2, -2] = .2
+        R[-3, -3] = .2
 
         z = []
         for anchor in anchors:
