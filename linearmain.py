@@ -3,7 +3,7 @@ from typing import List
 from decawave_1001_uart import Decawave1001Driver
 from navx import AHRS
 from threading import Thread, Lock
-from kalman import Dayton
+from utils.kalman import Dayton
 from networktables import NetworkTables
 import numpy as np
 
