@@ -1,7 +1,0 @@
-{
-    "python.analysis.typeCheckingMode": "off",
-    "python.analysis.autoImportCompletions": true,
-    "files.associations": {
-        "iomanip": "cpp"
-    }
-}

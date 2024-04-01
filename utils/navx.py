@@ -2,40 +2,12 @@ from multiprocessing import Process, Lock, Value, Event
 from py_navx import AHRS, SerialDataType
 from filterpy.common import Q_discrete_white_noise
 from filterpy.kalman import KalmanFilter
-from scipy.spatial.transform import Rotation as R
 import numpy as np
 import time
 import warnings
-from ahrs.filters import Madgwick
-import math
 import imufusion
 
-warnings.simplefilter("ignore", UserWarning)
-
-class angle_filter():
-    def __init__(self):
-        self.f = KalmanFilter (dim_x=2, dim_z=1)
-        self.f.x = np.array([[0.],
-                             [0.]])
-        self.f.H = np.array([[0, 1]])
-        self.f.P *= 1
-        self.f.R = .1
-        self.f.Q = np.identity(2)
-        self.prev_t = time.monotonic_ns()
-        self.x = 0
-
-    def update(self, z):
-        dt = (time.monotonic_ns() - self.prev_t)/1e9
-        self.prev_t = time.monotonic_ns()
-        self.f.F = np.array([[1.,dt],
-                             [0.,1.]])
-        self.f.Q = Q_discrete_white_noise(dim=2, dt=dt, var=.1)
-        self.f.predict()
-        self.f.update(z)
-        return self.f.x[0, 0]
-
-
-class imu:
+class ahrs:
     def __init__(self, endpoint):
         self.gx = Value('d', 0)
         self.gy = Value('d', 0)
@@ -116,19 +88,3 @@ class imu:
             if self.calibrated.value == 1:
                 return True
             return False
-
-
-i = imu("/dev/ttyACM1")
-print('calibrating')
-while not i.is_calibrated():
-    time.sleep(.05)
-
-while True:
-    print()
-    print(i.get_gyro_x())
-    print(i.get_gyro_y())
-    print(i.get_gyro_z())
-    print(i.get_accel_x())
-    print(i.get_accel_y())
-    print(i.get_accel_z())
-    time.sleep(.01)
