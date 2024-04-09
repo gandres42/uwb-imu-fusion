@@ -19,7 +19,7 @@ class ahrs:
 
     def __update__(self, endpoint):
         ahrs = imufusion.Ahrs()
-        navx = AHRS(endpoint, SerialDataType.kRaw, 200)
+        navx = AHRS(endpoint, SerialDataType.kRawData, 200)
         prev_time = time.monotonic_ns()
         offset = 350000 # compensate for lost time, adjust per IMU
         grav_base = np.array([

@@ -1,10 +1,7 @@
 import time
-from typing import List
-from threading import Thread, Lock
 from networktables import NetworkTables
-import numpy as np
 from utils.dwm import dwm1001
-from utils.kalman import Nonlinear, Dayton
+from utils.kalman import Nonlinear
 from utils.navx import ahrs
 
 NetworkTables.initialize()
