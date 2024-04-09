@@ -1,10 +1,7 @@
 import numpy as np
 import time
 import math
-import filterpy
-from filterpy.kalman import ExtendedKalmanFilter
-from filterpy.common import Q_discrete_white_noise
-from utils.dwm import dwm1001, Anchor
+from utils.dwm import Anchor
 
 class Dayton:
     def A(self, dt) -> np.ndarray:
@@ -62,10 +59,10 @@ class Dayton:
             [0, 0, 0, .2]
         ])
 
-        self.P = np.identity(6) * 1
+        self.P = np.identity(6) * 10
 
-        self.jx_covar = 0.05
-        self.jy_covar = 0.05
+        self.jx_covar = 0.01
+        self.jy_covar = 0.01
 
         self.pax = 0
         self.pay = 0
@@ -136,10 +133,6 @@ class Nonlinear:
         if len(anchors) == 0:
             return
         
-        ax = ax * 9.80665
-        ay = ay * 9.80665
-        az = az * 9.80665
-        
         dt = time.monotonic() - self.prev_dwm
         self.prev_dwm = time.monotonic()
 
@@ -166,12 +159,12 @@ class Nonlinear:
             [0, dt, 0],
             [0, 0, dt]
         ])
-        Q = np.identity(3) * .1
+        Q = np.identity(3) * .5
 
         R = np.identity(len(anchors) + 3) * .19
-        R[-1, -1] = .2
-        R[-2, -2] = .2
-        R[-3, -3] = .2
+        R[-1, -1] = .69
+        R[-2, -2] = .69
+        R[-3, -3] = .69
 
         z = []
         for anchor in anchors:
@@ -187,9 +180,9 @@ class Nonlinear:
         H = []
         for anchor in anchors:
             H.append([
-                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (x_k - anchor.px)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 0,
-                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (y_k - anchor.py)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 0,
-                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (z_k - anchor.pz)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 0,
+                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (x_k - anchor.px)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 1,
+                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (y_k - anchor.py)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 1,
+                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (z_k - anchor.pz)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 1,
                 0,
                 0,
                 0,

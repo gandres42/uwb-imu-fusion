@@ -1,10 +1,7 @@
 from multiprocessing import Process, Lock, Value, Event
 from py_navx import AHRS, SerialDataType
-from filterpy.common import Q_discrete_white_noise
-from filterpy.kalman import KalmanFilter
 import numpy as np
 import time
-import warnings
 import imufusion
 
 class ahrs:
@@ -57,27 +54,27 @@ class ahrs:
 
     def get_gyro_x(self):
         with self.lock:
-            return round(self.gx.value, 2)
+            return self.gx.value
     
     def get_gyro_y(self):
         with self.lock:
-            return round(self.gy.value, 2)
+            return self.gy.value
     
     def get_gyro_z(self):
         with self.lock:
-            return round(self.gz.value, 2)
+            return self.gz.value
         
     def get_accel_x(self):
         with self.lock:
-            return round(self.ax.value, 2)
+            return self.ax.value
         
     def get_accel_y(self):
         with self.lock:
-            return round(self.ay.value, 2)
+            return self.ay.value
         
     def get_accel_z(self):
         with self.lock:
-            return round(self.az.value, 2)
+            return self.az.value
         
     def zero_gyro_z(self):
         with self.lock:

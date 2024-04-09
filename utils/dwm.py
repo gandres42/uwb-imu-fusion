@@ -41,7 +41,7 @@ class Anchor:
 class dwm1001():
     def __init__(self, path: str) -> None:
         # open serial port, clear buffer
-        self.s = serial.Serial(path, 115200, timeout=0.1)
+        self.s = serial.Serial(path, 115200, timeout=0.05)
         tmp_buf = None
         while tmp_buf != b'':
             tmp_buf = self.s.read(1)
