@@ -161,7 +161,7 @@ class Nonlinear:
         ])
         Q = np.identity(3) * .5
 
-        R = np.identity(len(anchors) + 3) * .19
+        R = np.identity(len(anchors) + 3) * .197
         R[-1, -1] = .69
         R[-2, -2] = .69
         R[-3, -3] = .69

@@ -24,10 +24,10 @@ ekf = Nonlinear(init_pos.px, init_pos.py, init_pos.pz)
 anchors = []
 try:
     while True:
-        if time.monotonic() - prev_dwm > 0.1:
+        if time.monotonic() - prev_dwm >= 0.1:
             anchors = dwm.anchors()
             prev_dwm = time.monotonic()
-        if time.monotonic() - prev_imu > 1/200:
+        if time.monotonic() - prev_imu >= .005:
             ekf.dwm_update(anchors,
                            imu.get_accel_x() * 9.8, 
                            imu.get_accel_y() * 9.8, 
