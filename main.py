@@ -11,8 +11,8 @@ NetworkTables.initialize()
 nt = NetworkTables.getTable("localization")
 
 dwm = dwm1001("/dev/ttyACM0")
-
 imu = ahrs("/dev/ttyACM1")
+
 while not imu.is_calibrated():
     time.sleep(0.05)
 
@@ -28,7 +28,6 @@ try:
         if time.monotonic() - prev_dwm > 0.1:
             anchors = dwm.anchors()
             prev_dwm = time.monotonic()
-        # if time.monotonic() - prev_imu >= 0.01:
             ekf.dwm_update(anchors, 
                            imu.get_accel_x(), 
                            imu.get_accel_y(), 
