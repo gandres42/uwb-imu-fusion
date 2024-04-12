@@ -73,9 +73,9 @@ class Fusion:
         Q = np.identity(3)
 
         R = np.identity(len(anchors) + 3) * .19
-        R[-1, -1] = .2
-        R[-2, -2] = .2
-        R[-3, -3] = .2
+        R[-1, -1] = 1
+        R[-2, -2] = 1
+        R[-3, -3] = 1
 
         z = []
         for anchor in anchors:
@@ -141,7 +141,7 @@ class UWB:
         self.prev_dwm = time.monotonic()
         
     
-    def dwm_update(self, anchors: list[Anchor], ax, ay, az):
+    def dwm_update(self, anchors: list[Anchor]):
         def z_factory(x, anchors: list[Anchor]):
             eax = x[-3, 0]
             eay = x[-2, 0]
@@ -193,9 +193,9 @@ class UWB:
         H = []
         for anchor in anchors:
             H.append([
-                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (x_k - anchor.px)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 1,
-                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (y_k - anchor.py)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 1,
-                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (z_k - anchor.pz)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 1,
+                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (x_k - anchor.px)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 0,
+                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (y_k - anchor.py)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 0,
+                (((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) and (z_k - anchor.pz)/(((x_k - anchor.px)**2 + (y_k - anchor.py)**2 + (z_k - anchor.pz)**2)**.5) or 0,
                 0,
                 0,
                 0,

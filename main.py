@@ -1,7 +1,7 @@
 import time
 from networktables import NetworkTables
 from utils.dwm import dwm1001
-from utils.kalman import Fusion, UWB, ReducedModel
+from utils.kalman import Fusion, UWB
 from utils.navx import ahrs
 
 NetworkTables.initialize()
@@ -26,10 +26,7 @@ try:
             anchors = dwm.anchors()
             prev_dwm = time.monotonic()
         if time.monotonic() - prev_imu >= .005:
-            plain_ekf.dwm_update(anchors,
-                           imu.get_accel_x() * 9.8, 
-                           imu.get_accel_y() * 9.8, 
-                           imu.get_accel_z() * 9.8)
+            plain_ekf.dwm_update(anchors)
             fusion_ekf.dwm_update(anchors,
                            imu.get_accel_x() * 9.8, 
                            imu.get_accel_y() * 9.8, 

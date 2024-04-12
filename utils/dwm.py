@@ -2,6 +2,9 @@ import serial
 from multiprocessing import Process, Lock, Value, Array, Event
 import time
 import ctypes
+from filterpy.kalman import KalmanFilter
+from filterpy.common import Q_discrete_white_noise
+import numpy as np
 
 class _CPosition(ctypes.Structure):
     _fields_ = [
@@ -38,6 +41,33 @@ class Anchor:
         self.pz = pz
         self.pqf = pqf
 
+class AnchorFilter:
+    def __init__(self, init_dst) -> None:
+        self.f = KalmanFilter(dim_x=2, dim_z=1)
+        self.f.x = np.array([
+            [init_dst],    # distance
+            [0]            # change in distance
+        ])
+        self.f.F = np.array([
+            [1,1],
+            [0,1]
+        ])
+        self.f.H = np.array([[0,1]])
+        self.f.P *= 10
+        self.f.R = .19
+        self.prev_d = init_dst
+        self.prev_t = time.monotonic_ns()
+
+    def update(self, dst):
+        self.f.Q = Q_discrete_white_noise(dim=2, dt=(time.monotonic_ns() - self.prev_t)/1e9, var=1)
+        self.f.predict()
+        self.f.update(dst - self.prev_d)
+        self.prev_d = dst
+        self.prev_t = time.monotonic_ns()
+
+    def get_dst(self):
+        return self.f.x[0, 0]
+
 class dwm1001():
     def __init__(self, path: str) -> None:
         # open serial port, clear buffer
@@ -58,6 +88,7 @@ class dwm1001():
         time.sleep(self.update_rate.value)
 
     def __listen_thread__(self):
+        filter_dict = {}
         while not self.ekf.is_set():
             self.s.write(bytearray([0x0C, 0X00]))
 
@@ -93,6 +124,7 @@ class dwm1001():
             with self.anch_lock:
                 self.anch_count.value = vl
                 for i in range(vl):
+                    # extract raw values from buffer
                     buf = self.s.read(20)
                     addr = ''.join(format(byte, '02x') for byte in buf[1::-1])
                     dst = int.from_bytes(buf[2:6], byteorder='little') * .001
@@ -102,7 +134,15 @@ class dwm1001():
                     pos_y = int.from_bytes(buf[4:8], byteorder='little', signed=True) * .001
                     pos_z = int.from_bytes(buf[8:12], byteorder='little', signed=True) * .001
                     pos_qf = int.from_bytes([buf[12]], byteorder='little')
-                    self.anchs[i].dst = dst
+
+                    # filter distance based on ID and previous identified time
+                    if addr not in filter_dict.keys():
+                        filter_dict[addr] = AnchorFilter(dst)
+                    else:
+                        filter_dict[addr].update(dst)
+                    
+                    # add values to new anchor set
+                    self.anchs[i].dst = filter_dict[addr].get_dst()
                     self.anchs[i].qf = qf
                     self.anchs[i].px = pos_x
                     self.anchs[i].py = pos_y
