@@ -1,7 +1,7 @@
 import time
 from networktables import NetworkTables
 from utils.dwm import dwm1001
-from utils.kalman import Nonlinear
+from utils.kalman import Fusion, UWB, ReducedModel
 from utils.navx import ahrs
 
 NetworkTables.initialize()
@@ -17,7 +17,8 @@ while not imu.is_calibrated():
 prev_imu = time.monotonic()
 prev_dwm = time.monotonic()
 init_pos = dwm.position()
-ekf = Nonlinear(init_pos.px, init_pos.py, init_pos.pz)
+plain_ekf = UWB(init_pos.px, init_pos.py, init_pos.pz)
+fusion_ekf = Fusion(init_pos.px, init_pos.py, init_pos.pz)
 anchors = []
 try:
     while True:
@@ -25,13 +26,19 @@ try:
             anchors = dwm.anchors()
             prev_dwm = time.monotonic()
         if time.monotonic() - prev_imu >= .005:
-            ekf.dwm_update(anchors,
+            plain_ekf.dwm_update(anchors,
+                           imu.get_accel_x() * 9.8, 
+                           imu.get_accel_y() * 9.8, 
+                           imu.get_accel_z() * 9.8)
+            fusion_ekf.dwm_update(anchors,
                            imu.get_accel_x() * 9.8, 
                            imu.get_accel_y() * 9.8, 
                            imu.get_accel_z() * 9.8)
             prev_imu = time.monotonic()
-            nt.putNumber('fuse_x', round(ekf.get_x()[0, 0], 2))
-            nt.putNumber('fuse_y', round(ekf.get_x()[1, 0], 2))
+            nt.putNumber('dwm_x', round(plain_ekf.get_x()[0, 0], 2))
+            nt.putNumber('dwm_y', round(plain_ekf.get_x()[1, 0], 2))
+            nt.putNumber('fuse_x', round(fusion_ekf.get_x()[0, 0], 2))
+            nt.putNumber('fuse_y', round(fusion_ekf.get_x()[1, 0], 2))
             
 except KeyboardInterrupt:
     dwm.close()
